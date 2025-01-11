@@ -92,7 +92,12 @@ export class PlanetManager {
           vPosition = position;
           vec4 worldPosition = modelMatrix * vec4(position, 1.0);
           vWorldPosition = worldPosition.xyz;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          
+          // Add vertex displacement based on position for more realistic waves
+          float displacement = sin(position.x * 2.0 + position.y * 3.0) * 0.2;
+          vec3 newPosition = position + normal * displacement;
+          
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
         }
       `,
       fragmentShader: `
@@ -110,6 +115,7 @@ export class PlanetManager {
         varying vec3 vPosition;
         varying vec3 vWorldPosition;
         
+        // Improved noise functions for more realistic water movement
         vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
         vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
         vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
@@ -140,9 +146,13 @@ export class PlanetManager {
 
         float getWaves(vec2 uv) {
           float waves = 0.0;
+          
+          // Add multiple layers of waves with different frequencies
           waves += snoise(uv * 2.0 + time * 0.5) * 0.5;
           waves += snoise(uv * 4.0 + time * 0.8) * 0.25;
           waves += snoise(uv * 8.0 + time * 1.2) * 0.125;
+          waves += snoise(uv * 16.0 + time * 1.6) * 0.0625;
+          
           return waves;
         }
 
@@ -150,28 +160,39 @@ export class PlanetManager {
           vec3 viewDir = normalize(cameraPosition - vWorldPosition);
           float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 3.0);
           
+          // Calculate wave movement based on position and time
           vec2 uv = vUv * 20.0;
           float waves = getWaves(uv);
           
-          // Tidal effect from moon
+          // Calculate tidal effect from moon's gravity
           float moonDist = length(moonPosition - vWorldPosition);
           float tidalEffect = 1.0 / (moonDist * moonDist * 0.0001);
           waves *= (1.0 + tidalEffect * 0.2);
           
-          // Depth color
-          vec3 waterColor = mix(deepColor, baseColor, waves * 0.5 + 0.5);
+          // Add wave height variation based on position
+          float heightVariation = sin(vPosition.x * 0.1 + time) * cos(vPosition.z * 0.1 + time) * 0.5 + 0.5;
           
-          // Lighting and reflections
+          // Combine deep and surface water colors
+          vec3 waterColor = mix(deepColor, baseColor, waves * 0.5 + 0.5);
+          waterColor = mix(waterColor, baseColor, heightVariation * 0.3);
+          
+          // Add sun reflections
           vec3 sunDir = normalize(sunPosition - vWorldPosition);
           float sunReflection = pow(max(0.0, dot(reflect(-sunDir, vNormal), viewDir)), 32.0);
           
-          // Final color composition
+          // Add foam based on wave height and movement
+          float foam = smoothstep(0.7, 1.0, waves + heightVariation);
+          
+          // Combine all effects
           vec3 finalColor = waterColor;
           finalColor += highlightColor * fresnel * 0.5;
-          finalColor += vec3(1.0, 0.95, 0.8) * sunReflection;
-          finalColor += foamColor * smoothstep(0.7, 1.0, waves) * 0.2;
+          finalColor += vec3(1.0, 0.95, 0.8) * sunReflection * (1.0 - foam * 0.5);
+          finalColor += foamColor * foam * 0.3;
           
-          gl_FragColor = vec4(finalColor, 0.85);
+          // Add subtle blue tint to deeper areas
+          finalColor = mix(finalColor, deepColor, (1.0 - heightVariation) * 0.2);
+          
+          gl_FragColor = vec4(finalColor, 0.9);
         }
       `,
       transparent: true,
