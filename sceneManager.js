@@ -1,4 +1,5 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js';
+import { ControlsManager } from './controlsManager.js';
 
 export class SceneManager {
   constructor() {
@@ -13,6 +14,7 @@ export class SceneManager {
     
     this.setup();
     this.setupLighting();
+    this.controls = new ControlsManager(this.camera, this.renderer.domElement);
   }
 
   setup() {
@@ -51,6 +53,7 @@ export class SceneManager {
   }
 
   render() {
+    this.controls.update();
     this.renderer.render(this.scene, this.camera);
   }
 }

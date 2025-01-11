@@ -6,6 +6,7 @@ body {
   align-items: center;
   height: 100vh;
   background-color: #000000;
+  touch-action: none; /* Prevents default touch behaviors */
 }
 
 #startButton {
@@ -21,7 +22,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 2px;
   position: relative;
-  z-index: 1000; /* Ensure button is above canvas */
+  z-index: 1000;
 }
 
 #startButton:hover {
@@ -37,9 +38,18 @@ body {
   height: 100%;
   opacity: 0;
   transition: opacity 2s ease;
-  z-index: 1; /* Canvas should be below the button */
+  z-index: 1;
+  touch-action: none; /* Prevents default touch behaviors */
 }
 
 .canvas-container.visible {
   opacity: 1;
+}
+
+/* Mobile optimization */
+@media (max-width: 768px) {
+  #startButton {
+    padding: 15px 30px;
+    font-size: 20px;
+  }
 }
