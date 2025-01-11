@@ -3,14 +3,15 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.m
 export class SceneManager {
   constructor() {
     this.scene = new THREE.Scene();
-    // Increase far plane distance significantly to prevent culling
+    // Increase far plane dramatically to prevent culling at large distances
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000000);
     
     try {
       this.renderer = new THREE.WebGLRenderer({ 
         antialias: true,
         powerPreference: "high-performance",
-        failIfMajorPerformanceCaveat: true
+        failIfMajorPerformanceCaveat: true,
+        logarithmicDepthBuffer: true // Enable logarithmic depth buffer for better depth precision
       });
     } catch (error) {
       console.error('Failed to create WebGL renderer:', error);
@@ -20,11 +21,10 @@ export class SceneManager {
     this.containerElement = document.createElement('div');
     this.containerElement.className = 'canvas-container';
     
-    // Camera control variables
+    // Adjust zoom limits for realistic solar system scale
     this.minDistance = 15;  
-    // Increase max distance to match the far plane
-    this.maxDistance = 500000;
-    this.zoomSpeed = 0.8;
+    this.maxDistance = 500000; // Increased max zoom distance
+    this.zoomSpeed = 1.2; // Increased for better control at large distances
     this.currentDistance = 100;
     this.targetDistance = 100;
     this.lastTouchDistance = 0;
@@ -185,24 +185,25 @@ export class SceneManager {
   }
 
   initializeBackground() {
-    // Add stars to the background
     const starGeometry = new THREE.BufferGeometry();
     const starMaterial = new THREE.PointsMaterial({
       color: 0xFFFFFF,
-      size: 0.5,
+      size: 2,
       sizeAttenuation: true
     });
 
     const starVertices = [];
-    for (let i = 0; i < 10000; i++) {
-      const x = (Math.random() - 0.5) * 2000;
-      const y = (Math.random() - 0.5) * 2000;
-      const z = (Math.random() - 0.5) * 2000;
+    // Increase number of stars and their spread
+    for (let i = 0; i < 50000; i++) {
+      const x = (Math.random() - 0.5) * 1000000;
+      const y = (Math.random() - 0.5) * 1000000;
+      const z = (Math.random() - 0.5) * 1000000;
       starVertices.push(x, y, z);
     }
 
     starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
     const stars = new THREE.Points(starGeometry, starMaterial);
+    stars.frustumCulled = false; // Prevent star culling
     this.scene.add(stars);
   }
 

@@ -4,20 +4,17 @@ export class SunManager {
   constructor(scene) {
     this.scene = scene;
     this.sun = this.createSun();
+    this.sun.frustumCulled = false; // Prevent sun culling
     this.scene.add(this.sun);
     this.setupSunLight();
-    
-    // Ensure the sun and its glow are never culled
-    this.sun.frustumCulled = false;
-    this.sun.traverse(child => {
-      child.frustumCulled = false;
-    });
   }
 
   createSun() {
-    // Sun's radius is about 696,340 km, Earth's is 6,371 km
-    // Using scale factor to maintain relative proportions while keeping visualizable distances
-    const geometry = new THREE.SphereGeometry(500, 128, 128); // Increased resolution and size
+    // Sun's actual radius is about 696,340 km
+    // Using scale factor while maintaining relative proportions
+    const geometry = new THREE.SphereGeometry(5000, 128, 128);
+    
+    // Enhanced sun shader
     const material = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
@@ -86,10 +83,9 @@ export class SunManager {
     });
 
     const sun = new THREE.Mesh(geometry, material);
-    sun.frustumCulled = false;
     
     // Enhanced glow effect
-    const glowGeometry = new THREE.SphereGeometry(510, 128, 128);
+    const glowGeometry = new THREE.SphereGeometry(5010, 128, 128);
     const glowMaterial = new THREE.ShaderMaterial({
       uniforms: {
         viewVector: { value: new THREE.Vector3() },
@@ -120,12 +116,15 @@ export class SunManager {
     });
 
     const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
-    glowMesh.frustumCulled = false;
     sun.add(glowMesh);
 
-    // Position sun at a more realistic scaled distance
-    sun.position.set(15000, 200, -20000);
+    // Position sun at more realistic scaled distance
+    sun.position.set(149597870 * 0.1, 200, -149597870 * 0.1); // Roughly 149.6 million km (1 AU)
     
+    // Ensure the sun and its components are never culled
+    sun.frustumCulled = false;
+    glowMesh.frustumCulled = false;
+
     return sun;
   }
 
@@ -135,18 +134,24 @@ export class SunManager {
     sunLight.position.copy(this.sun.position);
     sunLight.castShadow = true;
     
-    // Increase shadow camera frustum to handle larger distances
-    const d = 50000;
+    // Improve shadow quality
+    sunLight.shadow.mapSize.width = 4096;
+    sunLight.shadow.mapSize.height = 4096;
+    sunLight.shadow.camera.near = 0.5;
+    sunLight.shadow.camera.far = 5000;
+    sunLight.shadow.bias = -0.0001;
+    
+    // Increase shadow camera frustum
+    const d = 1000;
     sunLight.shadow.camera.left = -d;
     sunLight.shadow.camera.right = d;
     sunLight.shadow.camera.top = d;
     sunLight.shadow.camera.bottom = -d;
-    sunLight.shadow.camera.far = 100000;
     
     this.scene.add(sunLight);
 
-    // Add point light with increased range
-    const pointLight = new THREE.PointLight(0xffdd44, 5, 100000);
+    // Add point light for volumetric lighting effects
+    const pointLight = new THREE.PointLight(0xffdd44, 5, 3000);
     pointLight.position.copy(this.sun.position);
     this.scene.add(pointLight);
 
