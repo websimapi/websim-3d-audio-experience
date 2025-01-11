@@ -1,11 +1,13 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js';
 import { SceneManager } from './sceneManager.js';
 import { AudioManager } from './audioManager.js';
+import { PlanetManager } from './planetManager.js';
 
 class App {
   constructor() {
     this.sceneManager = new SceneManager();
     this.audioManager = new AudioManager(this.sceneManager.camera);
+    this.planetManager = new PlanetManager(this.sceneManager.scene);
     this.bindEvents();
   }
 
@@ -22,6 +24,7 @@ class App {
 
   animate() {
     requestAnimationFrame(() => this.animate());
+    this.planetManager.animate();
     this.sceneManager.render();
   }
 
