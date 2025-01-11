@@ -2,12 +2,6 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.m
 
 export class SunManager {
   constructor(scene) {
-    // Real values (in km):
-    // Sun diameter: 1,392,700
-    // We'll use the same scale factor as the planet (1 unit = 100,000 km)
-    this.SCALE_FACTOR = 1/100000;
-    this.SUN_RADIUS = (1392700/2) * this.SCALE_FACTOR; // About 6.96 units
-
     this.scene = scene;
     this.sun = this.createSun();
     this.scene.add(this.sun);
@@ -15,7 +9,7 @@ export class SunManager {
   }
 
   createSun() {
-    const geometry = new THREE.SphereGeometry(this.SUN_RADIUS, 64, 64);
+    const geometry = new THREE.SphereGeometry(40, 64, 64);
     const material = new THREE.MeshStandardMaterial({
       emissive: 0xffdd44,
       emissiveIntensity: 1,
@@ -24,10 +18,9 @@ export class SunManager {
     });
 
     const sun = new THREE.Mesh(geometry, material);
-    sun.position.set(0, 0, 0); // Sun at the center of the solar system
+    sun.position.set(100, 40, -200);
     
-    // Add glow effect
-    const glowGeometry = new THREE.SphereGeometry(this.SUN_RADIUS * 1.05, 64, 64);
+    const glowGeometry = new THREE.SphereGeometry(41, 64, 64);
     const glowMaterial = new THREE.ShaderMaterial({
       uniforms: {
         viewVector: { value: new THREE.Vector3() }
@@ -61,18 +54,16 @@ export class SunManager {
   }
 
   setupSunLight() {
-    // Main directional light with shadows
-    const sunLight = new THREE.DirectionalLight(0xffffff, 2);
-    sunLight.position.set(0, 0, 0);
+    const sunLight = new THREE.DirectionalLight(0xffffff, 3);
+    sunLight.position.copy(this.sun.position);
     sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 2048;
-    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.mapSize.width = 4096;
+    sunLight.shadow.mapSize.height = 4096;
     sunLight.shadow.camera.near = 0.5;
-    sunLight.shadow.camera.far = 2000; // Increased to account for larger scale
+    sunLight.shadow.camera.far = 1000;
     sunLight.shadow.bias = -0.0001;
     
-    // Adjust shadow camera frustum
-    const d = 2000; // Increased to account for larger scale
+    const d = 400;
     sunLight.shadow.camera.left = -d;
     sunLight.shadow.camera.right = d;
     sunLight.shadow.camera.top = d;
@@ -80,14 +71,12 @@ export class SunManager {
     
     this.scene.add(sunLight);
 
-    // Add volumetric light effect
-    const pointLight = new THREE.PointLight(0xffdd44, 2, 3000);
-    pointLight.position.set(0, 0, 0);
+    const pointLight = new THREE.PointLight(0xffdd44, 4, 600);
+    pointLight.position.copy(this.sun.position);
     this.scene.add(pointLight);
   }
 
   animate(camera) {
-    // Update glow effect based on camera position
     const glowMesh = this.sun.children[0];
     glowMesh.material.uniforms.viewVector.value = new THREE.Vector3().subVectors(camera.position, this.sun.position);
   }

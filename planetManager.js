@@ -2,32 +2,15 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.m
 
 export class PlanetManager {
   constructor(scene) {
-    // Real values (in km):
-    // Earth diameter: 12,742
-    // Earth-Sun distance: 149,600,000
-    // We'll use a scale factor to make this workable in Three.js
-    // 1 unit = 100,000 km
-    this.SCALE_FACTOR = 1/100000;
-    this.EARTH_RADIUS = (12742/2) * this.SCALE_FACTOR; // About 0.064 units
-    this.EARTH_SUN_DISTANCE = 149600000 * this.SCALE_FACTOR; // About 1496 units
-    this.EARTH_ROTATION_SPEED = 0.001; // One rotation per day (scaled for animation)
-    this.EARTH_REVOLUTION_SPEED = 0.00001; // One revolution per year (scaled for animation)
-    
     this.scene = scene;
     this.planet = this.createPlanet();
-    this.planetOrbit = new THREE.Group();
-    this.planetOrbit.add(this.planet);
-    this.scene.add(this.planetOrbit);
+    this.scene.add(this.planet);
     this.clock = new THREE.Clock();
-
-    // Position Earth at correct distance from Sun
-    this.planet.position.x = this.EARTH_SUN_DISTANCE;
   }
 
   createPlanet() {
-    const geometry = new THREE.SphereGeometry(this.EARTH_RADIUS, 128, 128);
+    const geometry = new THREE.SphereGeometry(8, 128, 128);
     
-    // Create dynamic ocean material using custom shader
     const oceanMaterial = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
@@ -118,12 +101,12 @@ export class PlanetManager {
     });
 
     const planet = new THREE.Mesh(geometry, oceanMaterial);
-    planet.rotation.x = 0.2; // Earth's axial tilt is about 23.5 degrees
+    planet.rotation.x = 0.2;
     planet.castShadow = true;
     planet.receiveShadow = true;
+    planet.rotation.y = Math.PI;
     
-    // Add atmosphere effect
-    const atmosphereGeometry = new THREE.SphereGeometry(this.EARTH_RADIUS * 1.05, 128, 128);
+    const atmosphereGeometry = new THREE.SphereGeometry(8.4, 128, 128);
     const atmosphereMaterial = new THREE.ShaderMaterial({
       transparent: true,
       side: THREE.BackSide,
@@ -155,13 +138,7 @@ export class PlanetManager {
   }
 
   animate() {
-    // Rotate Earth on its axis
-    this.planet.rotation.y += this.EARTH_ROTATION_SPEED;
-    
-    // Revolve Earth around the Sun
-    this.planetOrbit.rotation.y += this.EARTH_REVOLUTION_SPEED;
-    
-    // Update ocean shader time uniform
+    this.planet.rotation.y += 0.001;
     const oceanMaterial = this.planet.material;
     oceanMaterial.uniforms.time.value = this.clock.getElapsedTime();
   }
