@@ -4,7 +4,10 @@ export class SceneManager {
   constructor() {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.renderer = new THREE.WebGLRenderer({ 
+      antialias: true,
+      powerPreference: "high-performance"
+    });
     this.containerElement = document.createElement('div');
     this.containerElement.className = 'canvas-container';
     
@@ -14,6 +17,13 @@ export class SceneManager {
 
   setup() {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.physicallyCorrectLights = true;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1;
+    this.renderer.outputEncoding = THREE.sRGBEncoding;
+    
     this.containerElement.appendChild(this.renderer.domElement);
     document.body.appendChild(this.containerElement);
     this.camera.position.z = 5;

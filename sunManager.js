@@ -10,14 +10,14 @@ export class SunManager {
 
   createSun() {
     const geometry = new THREE.SphereGeometry(10, 64, 64);
-    const material = new THREE.MeshBasicMaterial({
-      color: 0xffdd44,
+    const material = new THREE.MeshStandardMaterial({
+      emissive: 0xffdd44,
+      emissiveIntensity: 1,
       transparent: true,
       opacity: 0.9
     });
 
     const sun = new THREE.Mesh(geometry, material);
-    // Position the sun far away
     sun.position.set(50, 20, -100);
     
     // Add glow effect
@@ -55,12 +55,26 @@ export class SunManager {
   }
 
   setupSunLight() {
-    // Main sun light (intense directional light)
+    // Main directional light with shadows
     const sunLight = new THREE.DirectionalLight(0xffffff, 2);
     sunLight.position.copy(this.sun.position);
+    sunLight.castShadow = true;
+    sunLight.shadow.mapSize.width = 2048;
+    sunLight.shadow.mapSize.height = 2048;
+    sunLight.shadow.camera.near = 0.5;
+    sunLight.shadow.camera.far = 500;
+    sunLight.shadow.bias = -0.0001;
+    
+    // Adjust shadow camera frustum
+    const d = 200;
+    sunLight.shadow.camera.left = -d;
+    sunLight.shadow.camera.right = d;
+    sunLight.shadow.camera.top = d;
+    sunLight.shadow.camera.bottom = -d;
+    
     this.scene.add(sunLight);
 
-    // Add point light at sun's position for additional illumination
+    // Add volumetric light effect
     const pointLight = new THREE.PointLight(0xffdd44, 2, 300);
     pointLight.position.copy(this.sun.position);
     this.scene.add(pointLight);
