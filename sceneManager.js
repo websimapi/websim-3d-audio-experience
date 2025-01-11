@@ -35,8 +35,8 @@ export class SceneManager {
       Math.PI / 2, // phi (vertical angle)
       0 // theta (horizontal angle)
     );
-    this.minPolarAngle = 0.1; // Prevent camera from going below the planet
-    this.maxPolarAngle = Math.PI - 0.1; // Prevent camera from going above the planet
+    this.minPolarAngle = 0.1; 
+    this.maxPolarAngle = Math.PI - 0.1; 
     this.rotationSpeed = 0.01;
     
     this.setup();
@@ -217,12 +217,28 @@ export class SceneManager {
   }
 
   render() {
-    this.updateCameraPosition();
-    // Update the water shader with camera position
-    const oceanMaterial = this.scene.children.find(child => child.material && child.material.type === 'ShaderMaterial');
-    if (oceanMaterial) {
-      oceanMaterial.material.uniforms.cameraPosition.value.copy(this.camera.position);
+    if (!this.scene || !this.camera || !this.renderer) {
+      console.warn('Essential rendering components not initialized');
+      return;
     }
-    this.renderer.render(this.scene, this.camera);
+
+    this.updateCameraPosition();
+
+    try {
+      // Find ocean material safely
+      const ocean = this.scene.children.find(child => 
+        child?.type === 'Group' && // Planet group
+        child.children?.[4]?.material?.type === 'ShaderMaterial' // Ocean layer
+      )?.children?.[4];
+
+      // Update ocean shader only if it exists
+      if (ocean?.material?.uniforms?.cameraPosition) {
+        ocean.material.uniforms.cameraPosition.value.copy(this.camera.position);
+      }
+
+      this.renderer.render(this.scene, this.camera);
+    } catch (error) {
+      console.error('Error during render:', error);
+    }
   }
 }

@@ -7,7 +7,6 @@ import { MoonManager } from './moonManager.js';
 
 class App {
   constructor() {
-    // Check for WebGL support first
     if (!this.isWebGLAvailable()) {
       document.getElementById('webglError').style.display = 'block';
       document.getElementById('startButton').style.display = 'none';
@@ -16,24 +15,26 @@ class App {
     }
 
     try {
-      this.sceneManager = new SceneManager();
-      this.audioManager = new AudioManager(this.sceneManager.camera);
-      this.sunManager = new SunManager(this.sceneManager.scene);
-      this.moonManager = new MoonManager(this.sceneManager.scene);
-      this.planetManager = new PlanetManager(this.sceneManager.scene, this.moonManager);
-      this.bindEvents();
-
-      // Force an immediate render to check if planet is visible
-      this.sceneManager.render();
-      
-      // Make canvas visible immediately for debugging
-      this.sceneManager.show();
+      this.setup();
     } catch (error) {
       console.error('Error initializing app:', error);
       document.getElementById('webglError').style.display = 'block';
       document.getElementById('startButton').style.display = 'none';
       document.getElementById('zoomInstructions').style.display = 'none';
     }
+  }
+
+  setup() {
+    this.sceneManager = new SceneManager();
+    
+    // Initialize managers in the correct order
+    this.moonManager = new MoonManager(this.sceneManager.scene);
+    this.sunManager = new SunManager(this.sceneManager.scene);
+    this.planetManager = new PlanetManager(this.sceneManager.scene, this.moonManager);
+    this.audioManager = new AudioManager(this.sceneManager.camera);
+    
+    this.bindEvents();
+    this.sceneManager.show();
   }
 
   isWebGLAvailable() {
@@ -57,13 +58,21 @@ class App {
   }
 
   animate() {
-    if (!this.sceneManager) return;
-    
+    if (!this.sceneManager || !this.planetManager || !this.moonManager || !this.sunManager) {
+      console.warn('Required components not initialized');
+      return;
+    }
+
     requestAnimationFrame(() => this.animate());
-    this.planetManager.animate();
-    this.moonManager.animate();
-    this.sunManager.animate(this.sceneManager.camera);
-    this.sceneManager.render();
+
+    try {
+      this.planetManager.animate();
+      this.moonManager.animate();
+      this.sunManager.animate(this.sceneManager.camera);
+      this.sceneManager.render();
+    } catch (error) {
+      console.error('Error in animation loop:', error);
+    }
   }
 
   init() {
@@ -73,9 +82,12 @@ class App {
   }
 }
 
-try {
-  const app = new App();
-  app.init();
-} catch (error) {
-  console.error('Failed to initialize app:', error);
-}
+// Initialize app
+window.addEventListener('DOMContentLoaded', () => {
+  try {
+    const app = new App();
+    app.init();
+  } catch (error) {
+    console.error('Failed to initialize app:', error);
+  }
+});
