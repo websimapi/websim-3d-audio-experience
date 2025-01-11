@@ -24,6 +24,9 @@ export class PlanetManager {
     planet.castShadow = true;
     planet.receiveShadow = true;
     
+    // Rotate the planet 180 degrees so the lit side faces the camera initially
+    planet.rotation.y = Math.PI;
+    
     // Add atmosphere effect with improved shader
     const atmosphereGeometry = new THREE.SphereGeometry(2.1, 64, 64);
     const atmosphereMaterial = new THREE.ShaderMaterial({

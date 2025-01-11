@@ -1,6 +1,3 @@
-Since the plan is empty and indicates that the code remains exactly the same as before, the updated code will be identical to the current code. Here is the full updated code for styles.css:
-
-
 body {
   margin: 0;
   overflow: hidden;
@@ -9,7 +6,6 @@ body {
   align-items: center;
   height: 100vh;
   background-color: #000000;
-  touch-action: none; /* Prevents default touch behaviors */
 }
 
 #startButton {
@@ -25,7 +21,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 2px;
   position: relative;
-  z-index: 1000;
+  z-index: 1000; /* Ensure button is above canvas */
 }
 
 #startButton:hover {
@@ -41,18 +37,9 @@ body {
   height: 100%;
   opacity: 0;
   transition: opacity 2s ease;
-  z-index: 1;
-  touch-action: none; /* Prevents default touch behaviors */
+  z-index: 1; /* Canvas should be below the button */
 }
 
 .canvas-container.visible {
   opacity: 1;
-}
-
-/* Mobile optimization */
-@media (max-width: 768px) {
-  #startButton {
-    padding: 15px 30px;
-    font-size: 20px;
-  }
 }

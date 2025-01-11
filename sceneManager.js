@@ -1,5 +1,4 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js';
-import { ControlsManager } from './controlsManager.js';
 
 export class SceneManager {
   constructor() {
@@ -14,7 +13,6 @@ export class SceneManager {
     
     this.setup();
     this.setupLighting();
-    this.controls = new ControlsManager(this.camera, this.renderer.domElement);
   }
 
   setup() {
@@ -28,10 +26,11 @@ export class SceneManager {
     
     this.containerElement.appendChild(this.renderer.domElement);
     document.body.appendChild(this.containerElement);
-    this.camera.position.z = 5;
     
-    // Adjust fog for better space feel
-    this.scene.fog = new THREE.FogExp2(0x000000, 0.0015);
+    // Position camera on the opposite side of the planet relative to the sun
+    this.camera.position.set(-3, 2, -5);
+    // Look at the center where the planet is
+    this.camera.lookAt(0, 0, 0);
   }
 
   setupLighting() {
@@ -53,7 +52,6 @@ export class SceneManager {
   }
 
   render() {
-    this.controls.update();
     this.renderer.render(this.scene, this.camera);
   }
 }
