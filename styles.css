@@ -6,6 +6,7 @@ body {
   align-items: center;
   height: 100vh;
   background-color: #000000;
+  touch-action: none; /* Prevent default touch behaviors */
 }
 
 #startButton {
@@ -38,8 +39,24 @@ body {
   opacity: 0;
   transition: opacity 2s ease;
   z-index: 1; /* Canvas should be below the button */
+  touch-action: none; /* Prevent default touch behaviors */
 }
 
 .canvas-container.visible {
   opacity: 1;
+}
+
+/* Add instructions for mobile users */
+#zoomInstructions {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  text-align: center;
+  opacity: 0.7;
+  pointer-events: none;
+  z-index: 1000;
 }
