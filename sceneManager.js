@@ -8,7 +8,7 @@ export class SceneManager {
       75,
       window.innerWidth / window.innerHeight,
       1,
-      1e12 // Increased far plane
+      10000000000 // Increased far plane dramatically
     );
     
     try {
@@ -46,10 +46,6 @@ export class SceneManager {
     this.maxPolarAngle = Math.PI - 0.1; 
     this.rotationSpeed = 0.01;
     
-    // Initialize physics variables
-    this.raycaster = new THREE.Raycaster();
-    this.mouse = new THREE.Vector2();
-
     this.setup();
     this.setupLighting();
     this.setupControls();
@@ -194,26 +190,8 @@ export class SceneManager {
   }
 
   initializeBackground() {
-    const starGeometry = new THREE.BufferGeometry();
-    const starMaterial = new THREE.PointsMaterial({
-      color: 0xFFFFFF,
-      size: 2,
-      sizeAttenuation: true
-    });
-
-    const starVertices = [];
-    // Increase number of stars and their spread
-    for (let i = 0; i < 50000; i++) {
-      const x = (Math.random() - 0.5) * 1000000;
-      const y = (Math.random() - 0.5) * 1000000;
-      const z = (Math.random() - 0.5) * 1000000;
-      starVertices.push(x, y, z);
-    }
-
-    starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
-    const stars = new THREE.Points(starGeometry, starMaterial);
-    stars.frustumCulled = false; // Prevent star culling
-    this.scene.add(stars);
+    // Set a pure black background
+    this.scene.background = new THREE.Color(0x000000);
   }
 
   onWindowResize() {
