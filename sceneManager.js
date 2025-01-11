@@ -19,22 +19,31 @@ export class SceneManager {
     this.containerElement = document.createElement('div');
     this.containerElement.className = 'canvas-container';
     
-    // Adjusted camera control variables for better visibility
+    // Camera control variables
     this.minDistance = 30;  
     this.maxDistance = 300;
     this.zoomSpeed = 1.0;
-    this.currentDistance = 100; // Start further out
-    this.targetDistance = 100;  // Start further out
+    this.currentDistance = 100;
+    this.targetDistance = 100;
     this.lastTouchDistance = 0;
     
-    // Changed initial camera position to better view the planet
-    this.baseCameraPosition = new THREE.Vector3(-50, 30, 100);
-    this.normalizedCameraPosition = this.baseCameraPosition.clone().normalize();
+    // Orbital control variables
+    this.isDragging = false;
+    this.previousMousePosition = { x: 0, y: 0 };
+    this.sphericalCoords = new THREE.Spherical(
+      this.currentDistance,
+      Math.PI / 2, // phi (vertical angle)
+      0 // theta (horizontal angle)
+    );
+    this.minPolarAngle = 0.1; // Prevent camera from going below the planet
+    this.maxPolarAngle = Math.PI - 0.1; // Prevent camera from going above the planet
+    this.rotationSpeed = 0.01;
     
     this.setup();
     this.setupLighting();
     this.setupControls();
     this.initializeBackground();
+    this.updateCameraPosition();
   }
 
   setup() {
@@ -48,24 +57,55 @@ export class SceneManager {
     
     this.containerElement.appendChild(this.renderer.domElement);
     document.body.appendChild(this.containerElement);
-    
-    this.updateCameraPosition();
-    this.camera.lookAt(0, 0, 0);
   }
 
   setupControls() {
-    // Mouse wheel zoom
-    this.containerElement.addEventListener('wheel', (event) => {
-      event.preventDefault();
-      const zoomDelta = event.deltaY * 0.001;
-      this.targetDistance = Math.max(this.minDistance, 
-        Math.min(this.maxDistance, this.targetDistance + (zoomDelta * this.zoomSpeed * this.targetDistance)));
+    // Mouse controls for orbit
+    this.containerElement.addEventListener('mousedown', (event) => {
+      this.isDragging = true;
+      this.previousMousePosition = {
+        x: event.clientX,
+        y: event.clientY
+      };
     });
 
-    // Touch events for mobile
-    let touchStartY = 0;
+    document.addEventListener('mousemove', (event) => {
+      if (!this.isDragging) return;
+
+      const deltaMove = {
+        x: event.clientX - this.previousMousePosition.x,
+        y: event.clientY - this.previousMousePosition.y
+      };
+
+      // Update spherical coordinates based on mouse movement
+      this.sphericalCoords.theta -= deltaMove.x * this.rotationSpeed;
+      this.sphericalCoords.phi += deltaMove.y * this.rotationSpeed;
+      
+      // Clamp vertical rotation
+      this.sphericalCoords.phi = Math.max(this.minPolarAngle, 
+        Math.min(this.maxPolarAngle, this.sphericalCoords.phi));
+
+      this.previousMousePosition = {
+        x: event.clientX,
+        y: event.clientY
+      };
+
+      this.updateCameraPosition();
+    });
+
+    document.addEventListener('mouseup', () => {
+      this.isDragging = false;
+    });
+
+    // Touch controls for orbit
     this.containerElement.addEventListener('touchstart', (event) => {
-      if (event.touches.length === 2) {
+      if (event.touches.length === 1) {
+        this.isDragging = true;
+        this.previousMousePosition = {
+          x: event.touches[0].clientX,
+          y: event.touches[0].clientY
+        };
+      } else if (event.touches.length === 2) {
         const touch1 = event.touches[0];
         const touch2 = event.touches[1];
         this.lastTouchDistance = Math.hypot(
@@ -76,7 +116,25 @@ export class SceneManager {
     });
 
     this.containerElement.addEventListener('touchmove', (event) => {
-      if (event.touches.length === 2) {
+      if (event.touches.length === 1 && this.isDragging) {
+        const deltaMove = {
+          x: event.touches[0].clientX - this.previousMousePosition.x,
+          y: event.touches[0].clientY - this.previousMousePosition.y
+        };
+
+        this.sphericalCoords.theta -= deltaMove.x * this.rotationSpeed;
+        this.sphericalCoords.phi += deltaMove.y * this.rotationSpeed;
+        
+        this.sphericalCoords.phi = Math.max(this.minPolarAngle, 
+          Math.min(this.maxPolarAngle, this.sphericalCoords.phi));
+
+        this.previousMousePosition = {
+          x: event.touches[0].clientX,
+          y: event.touches[0].clientY
+        };
+
+        this.updateCameraPosition();
+      } else if (event.touches.length === 2) {
         const touch1 = event.touches[0];
         const touch2 = event.touches[1];
         const currentDistance = Math.hypot(
@@ -91,15 +149,32 @@ export class SceneManager {
         this.lastTouchDistance = currentDistance;
       }
     });
+
+    this.containerElement.addEventListener('touchend', () => {
+      this.isDragging = false;
+    });
+
+    // Mouse wheel zoom
+    this.containerElement.addEventListener('wheel', (event) => {
+      event.preventDefault();
+      const zoomDelta = event.deltaY * 0.001;
+      this.targetDistance = Math.max(this.minDistance, 
+        Math.min(this.maxDistance, this.targetDistance + (zoomDelta * this.zoomSpeed * this.targetDistance)));
+    });
   }
 
   updateCameraPosition() {
     // Smoothly interpolate current distance to target distance
     this.currentDistance += (this.targetDistance - this.currentDistance) * 0.1;
+    this.sphericalCoords.radius = this.currentDistance;
+
+    // Convert spherical coordinates to Cartesian
+    const position = new THREE.Vector3().setFromSpherical(this.sphericalCoords);
+    this.camera.position.copy(position);
     
-    // Update camera position based on distance
-    this.camera.position.copy(this.normalizedCameraPosition)
-      .multiplyScalar(this.currentDistance);
+    // Look at the center (origin)
+    this.camera.lookAt(0, 0, 0);
+    this.camera.updateMatrix();
   }
 
   setupLighting() {

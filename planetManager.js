@@ -9,9 +9,13 @@ export class PlanetManager {
   }
 
   createPlanetLayers() {
-    // Inner Core - red-orange metal
+    // Earth's radius is about 6,371 km
+    // Scale factor applied to maintain visual interest while keeping proportions
+    const baseRadius = 30; // Base radius for Earth
+
+    // Inner Core - radius about 1,220 km
     const innerCore = new THREE.Mesh(
-      new THREE.SphereGeometry(8, 64, 64),
+      new THREE.SphereGeometry(baseRadius * 0.192, 64, 64),
       new THREE.MeshStandardMaterial({
         color: 0xff3300,
         metalness: 0.8,
@@ -21,9 +25,9 @@ export class PlanetManager {
       })
     );
 
-    // Outer Core - lighter orange, liquid metal
+    // Outer Core - radius about 3,480 km
     const outerCore = new THREE.Mesh(
-      new THREE.SphereGeometry(9, 64, 64),
+      new THREE.SphereGeometry(baseRadius * 0.546, 64, 64),
       new THREE.MeshStandardMaterial({
         color: 0xff6600,
         metalness: 0.6,
@@ -33,9 +37,9 @@ export class PlanetManager {
       })
     );
 
-    // Mantle - rocky brown
+    // Mantle - radius about 6,340 km
     const mantle = new THREE.Mesh(
-      new THREE.SphereGeometry(10, 64, 64),
+      new THREE.SphereGeometry(baseRadius * 0.995, 64, 64),
       new THREE.MeshStandardMaterial({
         color: 0x8b4513,
         metalness: 0.2,
@@ -45,9 +49,9 @@ export class PlanetManager {
       })
     );
 
-    // Crust - darker rocky surface
+    // Crust - radius about 6,371 km
     const crust = new THREE.Mesh(
-      new THREE.SphereGeometry(11, 64, 64),
+      new THREE.SphereGeometry(baseRadius, 64, 64),
       new THREE.MeshStandardMaterial({
         color: 0x696969,
         metalness: 0.1,
@@ -57,8 +61,8 @@ export class PlanetManager {
       })
     );
 
-    // Ocean layer
-    const oceanGeometry = new THREE.SphereGeometry(12, 256, 256);
+    // Ocean layer - slightly larger than crust
+    const oceanGeometry = new THREE.SphereGeometry(baseRadius * 1.02, 256, 256);
     const oceanMaterial = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
@@ -170,7 +174,14 @@ export class PlanetManager {
 
     const ocean = new THREE.Mesh(oceanGeometry, oceanMaterial);
 
-    // Create planet container
+    // Set up shadows for all meshes
+    const meshes = [innerCore, outerCore, mantle, crust];
+    meshes.forEach(mesh => {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+    });
+
+    // Create planet container and add all layers
     this.planet = new THREE.Group();
     this.planet.add(innerCore);
     this.planet.add(outerCore);
@@ -178,8 +189,8 @@ export class PlanetManager {
     this.planet.add(crust);
     this.planet.add(ocean);
 
-    // Add atmosphere
-    const atmosphereGeometry = new THREE.SphereGeometry(12.4, 128, 128);
+    // Add atmosphere with adjusted size
+    const atmosphereGeometry = new THREE.SphereGeometry(baseRadius * 1.05, 128, 128);
     const atmosphereMaterial = new THREE.ShaderMaterial({
       transparent: true,
       side: THREE.BackSide,
@@ -206,10 +217,9 @@ export class PlanetManager {
     const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
     this.planet.add(atmosphere);
 
-    // Set initial rotation and scale
+    // Set initial rotation and position
     this.planet.rotation.x = 0.2;
     this.planet.rotation.y = Math.PI;
-    this.planet.scale.set(3, 3, 3);
 
     this.scene.add(this.planet);
   }
