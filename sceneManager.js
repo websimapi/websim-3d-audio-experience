@@ -118,6 +118,11 @@ export class SceneManager {
 
   render() {
     this.updateCameraPosition();
+    // Update the water shader with camera position
+    const oceanMaterial = this.scene.children.find(child => child.material && child.material.type === 'ShaderMaterial');
+    if (oceanMaterial) {
+      oceanMaterial.material.uniforms.cameraPosition.value.copy(this.camera.position);
+    }
     this.renderer.render(this.scene, this.camera);
   }
 }
