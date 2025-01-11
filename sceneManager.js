@@ -3,7 +3,7 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.m
 export class SceneManager {
   constructor() {
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
     this.renderer = new THREE.WebGLRenderer({ 
       antialias: true,
       powerPreference: "high-performance"
@@ -27,9 +27,9 @@ export class SceneManager {
     this.containerElement.appendChild(this.renderer.domElement);
     document.body.appendChild(this.containerElement);
     
-    // Position camera on the opposite side of the planet relative to the sun
-    this.camera.position.set(-3, 2, -5);
-    // Look at the center where the planet is
+    // Position camera at an appropriate viewing distance
+    // Using the same scale factor (1 unit = 100,000 km)
+    this.camera.position.set(1500, 100, 1500);
     this.camera.lookAt(0, 0, 0);
   }
 
