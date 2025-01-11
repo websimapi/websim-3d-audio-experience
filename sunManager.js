@@ -12,7 +12,7 @@ export class SunManager {
   createSun() {
     // Sun's actual radius is about 696,340 km
     // Using scale factor while maintaining relative proportions
-    const geometry = new THREE.SphereGeometry(5000, 128, 128);
+    const geometry = new THREE.SphereGeometry(50000, 128, 128);
     
     // Enhanced sun shader
     const material = new THREE.ShaderMaterial({
@@ -85,7 +85,7 @@ export class SunManager {
     const sun = new THREE.Mesh(geometry, material);
     
     // Enhanced glow effect
-    const glowGeometry = new THREE.SphereGeometry(5010, 128, 128);
+    const glowGeometry = new THREE.SphereGeometry(50010, 128, 128);
     const glowMaterial = new THREE.ShaderMaterial({
       uniforms: {
         viewVector: { value: new THREE.Vector3() },
@@ -119,7 +119,7 @@ export class SunManager {
     sun.add(glowMesh);
 
     // Position sun at more realistic scaled distance
-    sun.position.set(149597870 * 0.1, 200, -149597870 * 0.1); // Roughly 149.6 million km (1 AU)
+    sun.position.set(500000, 200, -500000); // Adjusted position for visibility while maintaining scale
     
     // Ensure the sun and its components are never culled
     sun.frustumCulled = false;
