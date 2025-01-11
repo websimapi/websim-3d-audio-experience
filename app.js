@@ -26,13 +26,13 @@ class App {
 
   setup() {
     this.sceneManager = new SceneManager();
-    
+
     // Initialize managers in the correct order
     this.moonManager = new MoonManager(this.sceneManager.scene);
     this.sunManager = new SunManager(this.sceneManager.scene);
     this.planetManager = new PlanetManager(this.sceneManager.scene, this.moonManager);
     this.audioManager = new AudioManager(this.sceneManager.camera);
-    
+
     this.bindEvents();
     this.sceneManager.show();
   }

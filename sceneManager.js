@@ -8,7 +8,7 @@ export class SceneManager {
       75,
       window.innerWidth / window.innerHeight,
       1,
-      10000000000 // Increased far plane dramatically
+      1e12 // Increased far plane
     );
     
     try {
@@ -46,6 +46,10 @@ export class SceneManager {
     this.maxPolarAngle = Math.PI - 0.1; 
     this.rotationSpeed = 0.01;
     
+    // Initialize physics variables
+    this.raycaster = new THREE.Raycaster();
+    this.mouse = new THREE.Vector2();
+
     this.setup();
     this.setupLighting();
     this.setupControls();
