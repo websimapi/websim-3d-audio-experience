@@ -3,7 +3,7 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.m
 export class SceneManager {
   constructor() {
     this.scene = new THREE.Scene();
-    // Increase far plane distance significantly to ensure distant objects are rendered
+    // Increase far plane distance significantly to prevent culling
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000000);
     
     try {
@@ -22,7 +22,8 @@ export class SceneManager {
     
     // Camera control variables
     this.minDistance = 15;  
-    this.maxDistance = 100000; // Increase max zoom distance
+    // Increase max distance to match the far plane
+    this.maxDistance = 500000;
     this.zoomSpeed = 0.8;
     this.currentDistance = 100;
     this.targetDistance = 100;
