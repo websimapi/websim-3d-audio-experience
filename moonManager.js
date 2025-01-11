@@ -5,13 +5,13 @@ export class MoonManager {
     this.scene = scene;
     this.moon = this.createMoon();
     this.scene.add(this.moon);
-    this.orbitRadius = 60;
+    this.orbitRadius = 80; // Increased orbit radius
     this.orbitSpeed = 0.0001;
     this.orbitAngle = 0;
   }
 
   createMoon() {
-    const geometry = new THREE.SphereGeometry(2.5, 64, 64);
+    const geometry = new THREE.SphereGeometry(4, 64, 64); // Increased moon size
     const material = new THREE.MeshStandardMaterial({
       color: 0xCCCCCC,
       roughness: 0.7,

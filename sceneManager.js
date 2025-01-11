@@ -19,16 +19,16 @@ export class SceneManager {
     this.containerElement = document.createElement('div');
     this.containerElement.className = 'canvas-container';
     
-    // Camera control variables
-    this.minDistance = 20;  // Increased minimum distance
-    this.maxDistance = 200; // Increased maximum distance
+    // Adjusted camera control variables for better visibility
+    this.minDistance = 30;  
+    this.maxDistance = 300;
     this.zoomSpeed = 1.0;
-    this.currentDistance = 50; // Increased starting distance
-    this.targetDistance = 50; // Increased starting target distance
+    this.currentDistance = 100; // Start further out
+    this.targetDistance = 100;  // Start further out
     this.lastTouchDistance = 0;
     
-    // Changed initial camera position for better view
-    this.baseCameraPosition = new THREE.Vector3(30, 20, 50);
+    // Changed initial camera position to better view the planet
+    this.baseCameraPosition = new THREE.Vector3(-50, 30, 100);
     this.normalizedCameraPosition = this.baseCameraPosition.clone().normalize();
     
     this.setup();

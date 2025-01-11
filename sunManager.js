@@ -7,13 +7,12 @@ export class SunManager {
     this.scene.add(this.sun);
     this.setupSunLight();
     
-    // Move sun further away and make it larger
-    this.sun.position.set(200, 80, -400);
-    this.sun.scale.set(2, 2, 2);
+    // Adjusted sun position to be more visible but not overwhelming
+    this.sun.position.set(300, 100, -500);
   }
 
   createSun() {
-    const geometry = new THREE.SphereGeometry(40, 64, 64);
+    const geometry = new THREE.SphereGeometry(60, 64, 64); // Made sun larger
     const material = new THREE.MeshStandardMaterial({
       emissive: 0xffdd44,
       emissiveIntensity: 1,
@@ -22,9 +21,8 @@ export class SunManager {
     });
 
     const sun = new THREE.Mesh(geometry, material);
-    sun.position.set(100, 40, -200);
     
-    const glowGeometry = new THREE.SphereGeometry(41, 64, 64);
+    const glowGeometry = new THREE.SphereGeometry(61, 64, 64);
     const glowMaterial = new THREE.ShaderMaterial({
       uniforms: {
         viewVector: { value: new THREE.Vector3() }
@@ -58,7 +56,7 @@ export class SunManager {
   }
 
   setupSunLight() {
-    const sunLight = new THREE.DirectionalLight(0xffffff, 3);
+    const sunLight = new THREE.DirectionalLight(0xffffff, 2); // Reduced intensity
     sunLight.position.copy(this.sun.position);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.width = 4096;
@@ -75,7 +73,8 @@ export class SunManager {
     
     this.scene.add(sunLight);
 
-    const pointLight = new THREE.PointLight(0xffdd44, 4, 600);
+    // Adjusted point light for better visibility
+    const pointLight = new THREE.PointLight(0xffdd44, 3, 1000);
     pointLight.position.copy(this.sun.position);
     this.scene.add(pointLight);
   }

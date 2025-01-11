@@ -8,13 +8,13 @@ export class PlanetManager {
     this.scene.add(this.planet);
     this.clock = new THREE.Clock();
 
-    // Add a position reset in case the planet is not visible
+    // Adjusted planet position and scale
     this.planet.position.set(0, 0, 0);
-    this.planet.scale.set(2, 2, 2); // Make planet larger
+    this.planet.scale.set(3, 3, 3); // Made planet even larger
   }
 
   createPlanet() {
-    const geometry = new THREE.SphereGeometry(8, 256, 256);
+    const geometry = new THREE.SphereGeometry(12, 256, 256); // Increased base size
 
     const oceanMaterial = new THREE.ShaderMaterial({
       uniforms: {
@@ -169,8 +169,8 @@ export class PlanetManager {
     planet.receiveShadow = true;
     planet.rotation.y = Math.PI;
 
-    // Add atmosphere
-    const atmosphereGeometry = new THREE.SphereGeometry(8.4, 128, 128);
+    // Adjusted atmosphere size
+    const atmosphereGeometry = new THREE.SphereGeometry(12.4, 128, 128);
     const atmosphereMaterial = new THREE.ShaderMaterial({
       transparent: true,
       side: THREE.BackSide,
