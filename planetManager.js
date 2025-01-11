@@ -9,6 +9,14 @@ export class PlanetManager {
   }
 
   createPlanetLayers() {
+    // Disable frustum culling for all planet components
+    const disableFrustumCulling = (object) => {
+      object.frustumCulled = false;
+      if (object.children) {
+        object.children.forEach(child => disableFrustumCulling(child));
+      }
+    };
+
     // Earth's radius is about 6,371 km
     // Scale factor applied to maintain visual interest while keeping proportions
     const baseRadius = 30; // Base radius for Earth
@@ -220,6 +228,14 @@ export class PlanetManager {
     // Set initial rotation and position
     this.planet.rotation.x = 0.2;
     this.planet.rotation.y = Math.PI;
+
+    disableFrustumCulling(this.planet);
+    this.planet.traverse((object) => {
+      if (object.material) {
+        object.material.depthWrite = true;
+        object.material.depthTest = true;
+      }
+    });
 
     this.scene.add(this.planet);
   }
