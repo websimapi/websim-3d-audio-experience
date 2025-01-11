@@ -2,58 +2,87 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.m
 
 export class AudioManager {
   constructor(camera) {
-    // Initialize audio context
-    THREE.AudioContext.getContext().suspend();
-    
+    // Create audio context only after user interaction
+    this.audioContext = null;
     this.listener = new THREE.AudioListener();
     camera.add(this.listener);
-    
-    // Create main sound
     this.sound = new THREE.Audio(this.listener);
-    
-    // Create gain node for smooth volume control
-    this.gainNode = THREE.AudioContext.getContext().createGain();
-    this.gainNode.gain.value = 0;
-    
     this.audioLoader = new THREE.AudioLoader();
-    this.isLoaded = false;
-    this.targetVolume = 0.8; // Slightly lower max volume
-    this.fadeTime = 2.0; // Fade in over 2 seconds
+    this.volume = 0;
+    this.targetVolume = 1;
+    this.fadeSpeed = 0.005;
+    this.buffer = null;
+    this.isInitialized = false;
+  }
+
+  async initialize() {
+    if (this.isInitialized) return;
+    
+    // Create audio context with modern factory method
+    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    
+    // Handle suspended state
+    if (this.audioContext.state === 'suspended') {
+      await this.audioContext.resume();
+    }
+    
+    this.isInitialized = true;
   }
 
   async loadAndPlayAudio() {
-    if (this.isLoaded) return;
-    
     try {
-      // Resume audio context on user interaction
-      await THREE.AudioContext.getContext().resume();
-      
-      // Load the audio file
-      const buffer = await new Promise((resolve, reject) => {
-        this.audioLoader.load('/lostbanger.wav', resolve, undefined, reject);
-      });
-      
-      // Configure audio nodes
-      this.sound.setBuffer(buffer);
+      // Initialize audio context on user interaction
+      await this.initialize();
+
+      // Load audio only if not already loaded
+      if (!this.buffer) {
+        this.buffer = await new Promise((resolve, reject) => {
+          this.audioLoader.load('/lostbanger.wav', 
+            (buffer) => resolve(buffer),
+            null,
+            (error) => reject(error)
+          );
+        });
+      }
+
+      // Set up and play the sound
+      this.sound.setBuffer(this.buffer);
       this.sound.setLoop(true);
+      this.sound.setVolume(0);
       
-      // Connect through gain node
-      this.sound.connect(this.gainNode);
-      this.gainNode.connect(THREE.AudioContext.getContext().destination);
+      // Check if context is running
+      if (this.audioContext.state !== 'running') {
+        await this.audioContext.resume();
+      }
       
-      // Start playback with volume at 0
-      this.gainNode.gain.setValueAtTime(0, THREE.AudioContext.getContext().currentTime);
       this.sound.play();
-      
-      // Smooth fade in
-      this.gainNode.gain.linearRampToValueAtTime(
-        this.targetVolume,
-        THREE.AudioContext.getContext().currentTime + this.fadeTime
-      );
-      
-      this.isLoaded = true;
+      this.startFade();
     } catch (error) {
-      console.error('Error loading audio:', error);
+      console.error('Error loading or playing audio:', error);
+    }
+  }
+
+  startFade() {
+    const fadeInterval = setInterval(() => {
+      if (this.volume < this.targetVolume) {
+        this.volume += this.fadeSpeed;
+        this.sound.setVolume(Math.min(this.volume, this.targetVolume));
+      } else {
+        clearInterval(fadeInterval);
+      }
+    }, 50);
+  }
+
+  stop() {
+    if (this.sound.isPlaying) {
+      this.sound.stop();
+    }
+  }
+
+  dispose() {
+    this.stop();
+    if (this.audioContext) {
+      this.audioContext.close();
     }
   }
 }

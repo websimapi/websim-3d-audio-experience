@@ -13,11 +13,22 @@ class App {
 
   bindEvents() {
     window.addEventListener('resize', () => this.sceneManager.onWindowResize());
-    document.getElementById('startButton').addEventListener('click', () => this.startExperience());
+    document.getElementById('startButton').addEventListener('click', async () => {
+      try {
+        await this.startExperience();
+      } catch (error) {
+        console.error('Error starting experience:', error);
+      }
+    });
+
+    // Clean up on page unload
+    window.addEventListener('beforeunload', () => {
+      this.audioManager.dispose();
+    });
   }
 
-  startExperience() {
-    this.audioManager.loadAndPlayAudio();
+  async startExperience() {
+    await this.audioManager.loadAndPlayAudio();
     this.sceneManager.show();
     document.getElementById('startButton').style.display = 'none';
   }
