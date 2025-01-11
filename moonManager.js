@@ -6,24 +6,24 @@ export class MoonManager {
     this.moon = this.createMoon();
     this.scene.add(this.moon);
     
-    // Moon's orbital parameters
-    this.orbitRadius = 384400 * 0.5; // Adjusted scale for better visibility while maintaining proportions
-    this.orbitSpeed = 0.00001; // Adjusted for visualization
-    this.angle = 0;
+    // Update orbital parameters to match reality (scaled)
+    this.orbitRadius = 384400 * 0.1; // Average Earth-Moon distance: 384,400 km
+    this.orbitSpeed = 0.00005; // Adjusted for smoother animation
+    this.orbitAngle = 0;
     
-    // Moon's rotation parameters
-    this.rotationSpeed = 0.000001;
-    this.rotationAngle = 0;
+    // Prevent moon culling
+    this.moon.frustumCulled = false;
   }
 
   createMoon() {
-    const moonGeometry = new THREE.SphereGeometry(1737, 64, 64); // Moon's actual radius in km
+    // Moon's actual radius is 1,737 km
+    const moonRadius = 81.7; // Scaled relative to Earth's new size
+    const geometry = new THREE.SphereGeometry(moonRadius, 64, 64);
     
-    // Create a more realistic moon material with custom shading
-    const moonMaterial = new THREE.ShaderMaterial({
+    // Create a more realistic moon material with crater-like texture
+    const material = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
-        baseColor: { value: new THREE.Color(0xaaaaaa) }
       },
       vertexShader: `
         varying vec3 vNormal;
@@ -35,52 +35,53 @@ export class MoonManager {
         }
       `,
       fragmentShader: `
-        uniform float time;
-        uniform vec3 baseColor;
         varying vec3 vNormal;
         varying vec2 vUv;
+        uniform float time;
 
-        float random(vec2 st) {
-          return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+        float noise(vec2 p) {
+          return fract(sin(dot(p.xy, vec2(12.9898,78.233))) * 43758.5453123);
         }
 
-        float noise(vec2 st) {
-          vec2 i = floor(st);
-          vec2 f = fract(st);
-          float a = random(i);
-          float b = random(i + vec2(1.0, 0.0));
-          float c = random(i + vec2(0.0, 1.0));
-          float d = random(i + vec2(1.0, 1.0));
-          vec2 u = f * f * (3.0 - 2.0 * f);
-          return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+        float craterNoise(vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          
+          float a = noise(i);
+          float b = noise(i + vec2(1.0, 0.0));
+          float c = noise(i + vec2(0.0, 1.0));
+          float d = noise(i + vec2(1.0, 1.0));
+          
+          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
         }
 
         void main() {
-          // Create crater-like texture
-          float n = noise(vUv * 20.0) * 0.5;
-          n += noise(vUv * 40.0) * 0.25;
-          n += noise(vUv * 80.0) * 0.125;
-
-          // Add some variation to the base color
-          vec3 color = baseColor * (0.8 + n * 0.4);
-
-          // Add limb darkening
-          float limb = pow(max(0.0, dot(vNormal, vec3(0.0, 0.0, 1.0))), 0.5);
-          color *= mix(0.5, 1.0, limb);
-
-          gl_FragColor = vec4(color, 1.0);
+          // Base color (off-white/grey)
+          vec3 baseColor = vec3(0.95, 0.95, 0.95);
+          
+          // Add crater-like texture
+          float craters = 0.0;
+          craters += craterNoise(vUv * 10.0) * 0.5;
+          craters += craterNoise(vUv * 20.0) * 0.25;
+          craters += craterNoise(vUv * 40.0) * 0.125;
+          
+          // Darken areas based on crater noise
+          vec3 finalColor = mix(baseColor, baseColor * 0.7, craters);
+          
+          // Add some subtle shadows based on normals
+          float light = max(0.0, dot(vNormal, normalize(vec3(1.0))));
+          finalColor *= mix(0.7, 1.0, light);
+          
+          gl_FragColor = vec4(finalColor, 1.0);
         }
-      `,
-      transparent: false,
-      depthWrite: true,
-      depthTest: true
+      `
     });
 
-    const moon = new THREE.Mesh(moonGeometry, moonMaterial);
+    const moon = new THREE.Mesh(geometry, material);
     moon.castShadow = true;
     moon.receiveShadow = true;
-    moon.frustumCulled = false; // Prevent moon culling
-
+    moon.frustumCulled = false;
     return moon;
   }
 
@@ -89,17 +90,17 @@ export class MoonManager {
   }
 
   animate() {
-    // Update orbital position
-    this.angle += this.orbitSpeed;
-    const x = Math.cos(this.angle) * this.orbitRadius;
-    const z = Math.sin(this.angle) * this.orbitRadius;
-    this.moon.position.set(x, 0, z);
-
-    // Update moon's rotation
-    this.rotationAngle += this.rotationSpeed;
-    this.moon.rotation.y = this.rotationAngle;
-
-    // Update moon shader
+    this.orbitAngle += this.orbitSpeed;
+    
+    // Update moon position
+    this.moon.position.x = Math.cos(this.orbitAngle) * this.orbitRadius;
+    this.moon.position.z = Math.sin(this.orbitAngle) * this.orbitRadius;
+    this.moon.position.y = Math.sin(this.orbitAngle * 0.5) * 100; // Add some vertical movement
+    
+    // Rotate the moon
+    this.moon.rotation.y += 0.001;
+    
+    // Update shader time uniform
     if (this.moon.material.uniforms) {
       this.moon.material.uniforms.time.value = performance.now() * 0.001;
     }
