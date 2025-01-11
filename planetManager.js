@@ -1,9 +1,10 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js';
 
 export class PlanetManager {
-  constructor(scene, moonManager) {
+  constructor(scene, moonManager, sunManager) {
     this.scene = scene;
     this.moonManager = moonManager;
+    this.sunManager = sunManager;
     this.createPlanetLayers();
     this.clock = new THREE.Clock();
   }
@@ -79,7 +80,8 @@ export class PlanetManager {
         mountainColor: { value: new THREE.Color(0x8B7765) },
         snowColor: { value: new THREE.Color(0xFFFFFF) },
         bumpScale: { value: 2.0 },
-        oceanLevel: { value: 0.0 }
+        oceanLevel: { value: 0.0 },
+        sunPosition: { value: new THREE.Vector3() } // Added sunPosition uniform
       },
       vertexShader: `
         varying vec2 vUv;
@@ -87,7 +89,6 @@ export class PlanetManager {
         varying vec3 vPosition;
 
         // 3D Simplex Noise 
-        // Source: https://github.com/ashima/webgl-noise
         vec4 permute(vec4 x) {
           return mod(((x*34.0)+1.0)*x, 289.0);
         }
@@ -180,7 +181,7 @@ export class PlanetManager {
 
           newPosition += normal * elevation * 0.5; // Adjust the displacement strength
 
-          vPosition = newPosition;
+          vPosition = (modelMatrix * vec4(newPosition, 1.0)).xyz;
 
           gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
         }
@@ -195,6 +196,7 @@ export class PlanetManager {
         uniform vec3 mountainColor;
         uniform vec3 snowColor;
         uniform float oceanLevel;
+        uniform vec3 sunPosition; // Added sunPosition uniform
 
         void main() {
           // Calculate elevation based on displacement
@@ -213,8 +215,11 @@ export class PlanetManager {
             color = snowColor;
           }
 
-          // Apply simple lighting
-          float lighting = dot(normalize(vNormal), vec3(0.0, 1.0, 0.0)) * 0.5 + 0.5;
+          // Calculate lighting based on sun position
+          vec3 lightDir = normalize(sunPosition - vPosition);
+          float lighting = max(dot(normalize(vNormal), lightDir), 0.0);
+
+          // Apply lighting
           color *= lighting;
 
           gl_FragColor = vec4(color, 1.0);
@@ -237,7 +242,7 @@ export class PlanetManager {
       uniforms: {
         time: { value: 0 },
         moonPosition: { value: new THREE.Vector3() },
-        sunPosition: { value: new THREE.Vector3(100, 40, -200) },
+        sunPosition: { value: new THREE.Vector3() }, // Updated sunPosition uniform
         baseColor: { value: new THREE.Color(0x1E90FF) },
         cameraPosition: { value: new THREE.Vector3() },
         waveHeight: { value: 0.2 },
@@ -392,7 +397,7 @@ export class PlanetManager {
       side: THREE.BackSide,
       uniforms: {
         time: { value: 0 },
-        sunPosition: { value: new THREE.Vector3() }
+        sunPosition: { value: new THREE.Vector3() } // Added sunPosition uniform
       },
       vertexShader: `
         varying vec3 vNormal;
@@ -442,6 +447,9 @@ export class PlanetManager {
         }
         if (child.material.uniforms.moonPosition) {
           child.material.uniforms.moonPosition.value.copy(this.moonManager.getPosition());
+        }
+        if (child.material.uniforms.sunPosition) {
+          child.material.uniforms.sunPosition.value.copy(this.sunManager.sun.position);
         }
       }
     });
