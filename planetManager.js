@@ -67,17 +67,17 @@ export class PlanetManager {
       })
     );
 
-    // Ocean layer - slightly larger than crust
+    // Update the ocean shader for a more primordial, mystical appearance
     const oceanGeometry = new THREE.SphereGeometry(baseRadius * 1.02, 256, 256);
     const oceanMaterial = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
         moonPosition: { value: new THREE.Vector3() },
         sunPosition: { value: new THREE.Vector3(100, 40, -200) },
-        baseColor: { value: new THREE.Color(0x006994) },
-        highlightColor: { value: new THREE.Color(0x8acdff) },
-        deepColor: { value: new THREE.Color(0x001933) },
-        foamColor: { value: new THREE.Color(0xffffff) },
+        baseColor: { value: new THREE.Color(0x001933) }, // Darker base color
+        highlightColor: { value: new THREE.Color(0x3366ff) }, // Divine light color
+        deepColor: { value: new THREE.Color(0x000066) }, // Deeper abyss color
+        foamColor: { value: new THREE.Color(0x4477ff) }, // Ethereal foam color
         cameraPosition: { value: new THREE.Vector3() }
       },
       vertexShader: `
@@ -92,12 +92,7 @@ export class PlanetManager {
           vPosition = position;
           vec4 worldPosition = modelMatrix * vec4(position, 1.0);
           vWorldPosition = worldPosition.xyz;
-          
-          // Add vertex displacement based on position for more realistic waves
-          float displacement = sin(position.x * 2.0 + position.y * 3.0) * 0.2;
-          vec3 newPosition = position + normal * displacement;
-          
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: `
@@ -115,84 +110,73 @@ export class PlanetManager {
         varying vec3 vPosition;
         varying vec3 vWorldPosition;
         
-        // Improved noise functions for more realistic water movement
-        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-        vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-        vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
-
-        float snoise(vec2 v) {
-          const vec4 C = vec4(0.211324865405187, 0.366025403784439,
-                           -0.577350269189626, 0.024390243902439);
-          vec2 i = floor(v + dot(v, C.yy));
-          vec2 x0 = v - i + dot(i, C.xx);
-          vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
-          vec4 x12 = x0.xyxy + C.xxzz;
-          x12.xy -= i1;
-          i = mod289(i);
-          vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
-          vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
-          m = m*m;
-          m = m*m;
-          vec3 x = 2.0 * fract(p * C.www) - 1.0;
-          vec3 h = abs(x) - 0.5;
-          vec3 ox = floor(x + 0.5);
-          vec3 a0 = x - ox;
-          m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
-          vec3 g;
-          g.x = a0.x * x0.x + h.x * x0.y;
-          g.yz = a0.yz * x12.xz + h.yz * x12.yw;
-          return 130.0 * dot(m, g);
+        // Improved noise function for more chaotic water
+        float noise(vec2 p) {
+          return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
         }
-
-        float getWaves(vec2 uv) {
-          float waves = 0.0;
+        
+        float voronoi(vec2 x) {
+          vec2 p = floor(x);
+          vec2 f = fract(x);
+          float min_dist = 1.0;
           
-          // Add multiple layers of waves with different frequencies
-          waves += snoise(uv * 2.0 + time * 0.5) * 0.5;
-          waves += snoise(uv * 4.0 + time * 0.8) * 0.25;
-          waves += snoise(uv * 8.0 + time * 1.2) * 0.125;
-          waves += snoise(uv * 16.0 + time * 1.6) * 0.0625;
+          for(int i = -1; i <= 1; i++) {
+            for(int j = -1; j <= 1; j++) {
+              vec2 b = vec2(float(j), float(i));
+              vec2 r = b - f + noise(p + b);
+              float d = dot(r, r);
+              min_dist = min(min_dist, d);
+            }
+          }
           
-          return waves;
+          return sqrt(min_dist);
+        }
+        
+        // Create swirling effect for the "Spirit hovering over the waters"
+        float spiritEffect(vec2 uv) {
+          float t = time * 0.2;
+          vec2 center = vec2(0.5 + sin(t) * 0.1, 0.5 + cos(t) * 0.1);
+          float dist = length(uv - center);
+          float angle = atan(uv.y - center.y, uv.x - center.x);
+          float spiral = sin(dist * 20.0 - time * 2.0 + angle * 2.0);
+          return smoothstep(0.0, 1.0, spiral * (1.0 - dist * 2.0));
         }
 
         void main() {
           vec3 viewDir = normalize(cameraPosition - vWorldPosition);
           float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 3.0);
           
-          // Calculate wave movement based on position and time
-          vec2 uv = vUv * 20.0;
-          float waves = getWaves(uv);
+          // Create deep, chaotic waters
+          vec2 uv = vUv * 10.0;
+          float chaos = voronoi(uv + time * 0.1) * 0.5;
+          chaos += voronoi(uv * 2.0 - time * 0.15) * 0.25;
+          chaos += voronoi(uv * 4.0 + time * 0.2) * 0.125;
           
-          // Calculate tidal effect from moon's gravity
-          float moonDist = length(moonPosition - vWorldPosition);
-          float tidalEffect = 1.0 / (moonDist * moonDist * 0.0001);
-          waves *= (1.0 + tidalEffect * 0.2);
+          // Add divine illumination effect
+          float spirit = spiritEffect(vUv);
           
-          // Add wave height variation based on position
-          float heightVariation = sin(vPosition.x * 0.1 + time) * cos(vPosition.z * 0.1 + time) * 0.5 + 0.5;
+          // Create the dark void effect
+          vec3 waterColor = mix(deepColor, baseColor, chaos);
+          waterColor = mix(waterColor, highlightColor, spirit * 0.3);
           
-          // Combine deep and surface water colors
-          vec3 waterColor = mix(deepColor, baseColor, waves * 0.5 + 0.5);
-          waterColor = mix(waterColor, baseColor, heightVariation * 0.3);
+          // Add mysterious glow from the deep
+          float depthGlow = pow(chaos, 2.0) * (1.0 + sin(time * 0.5) * 0.2);
+          waterColor += deepColor * depthGlow * 0.3;
           
-          // Add sun reflections
+          // Divine light reflection
           vec3 sunDir = normalize(sunPosition - vWorldPosition);
           float sunReflection = pow(max(0.0, dot(reflect(-sunDir, vNormal), viewDir)), 32.0);
           
-          // Add foam based on wave height and movement
-          float foam = smoothstep(0.7, 1.0, waves + heightVariation);
-          
           // Combine all effects
           vec3 finalColor = waterColor;
-          finalColor += highlightColor * fresnel * 0.5;
-          finalColor += vec3(1.0, 0.95, 0.8) * sunReflection * (1.0 - foam * 0.5);
-          finalColor += foamColor * foam * 0.3;
+          finalColor += highlightColor * fresnel * 0.7;
+          finalColor += vec3(0.3, 0.4, 1.0) * sunReflection * 0.5;
+          finalColor += foamColor * spirit * 0.15;
           
-          // Add subtle blue tint to deeper areas
-          finalColor = mix(finalColor, deepColor, (1.0 - heightVariation) * 0.2);
+          // Add slight transparency to suggest depth
+          float alpha = mix(0.95, 1.0, fresnel);
           
-          gl_FragColor = vec4(finalColor, 0.9);
+          gl_FragColor = vec4(finalColor, alpha);
         }
       `,
       transparent: true,
@@ -200,6 +184,7 @@ export class PlanetManager {
     });
 
     const ocean = new THREE.Mesh(oceanGeometry, oceanMaterial);
+    ocean.frustumCulled = false;
 
     // Set up shadows for all meshes
     const meshes = [innerCore, outerCore, mantle, crust];
