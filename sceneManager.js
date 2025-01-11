@@ -20,18 +20,21 @@ export class SceneManager {
     this.containerElement.className = 'canvas-container';
     
     // Camera control variables
-    this.minDistance = 15;  // Minimum zoom distance
-    this.maxDistance = 100; // Maximum zoom distance
+    this.minDistance = 20;  // Increased minimum distance
+    this.maxDistance = 200; // Increased maximum distance
     this.zoomSpeed = 1.0;
-    this.currentDistance = 25;
-    this.targetDistance = 25;
+    this.currentDistance = 50; // Increased starting distance
+    this.targetDistance = 50; // Increased starting target distance
     this.lastTouchDistance = 0;
-    this.baseCameraPosition = new THREE.Vector3(-12, 8, -20);
+    
+    // Changed initial camera position for better view
+    this.baseCameraPosition = new THREE.Vector3(30, 20, 50);
     this.normalizedCameraPosition = this.baseCameraPosition.clone().normalize();
     
     this.setup();
     this.setupLighting();
     this.setupControls();
+    this.initializeBackground();
   }
 
   setup() {
@@ -102,6 +105,28 @@ export class SceneManager {
   setupLighting() {
     const ambientLight = new THREE.AmbientLight(0x111111, 1.2);
     this.scene.add(ambientLight);
+  }
+
+  initializeBackground() {
+    // Add stars to the background
+    const starGeometry = new THREE.BufferGeometry();
+    const starMaterial = new THREE.PointsMaterial({
+      color: 0xFFFFFF,
+      size: 0.5,
+      sizeAttenuation: true
+    });
+
+    const starVertices = [];
+    for (let i = 0; i < 10000; i++) {
+      const x = (Math.random() - 0.5) * 2000;
+      const y = (Math.random() - 0.5) * 2000;
+      const z = (Math.random() - 0.5) * 2000;
+      starVertices.push(x, y, z);
+    }
+
+    starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+    const stars = new THREE.Points(starGeometry, starMaterial);
+    this.scene.add(stars);
   }
 
   onWindowResize() {

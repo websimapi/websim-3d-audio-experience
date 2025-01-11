@@ -7,6 +7,10 @@ export class PlanetManager {
     this.planet = this.createPlanet();
     this.scene.add(this.planet);
     this.clock = new THREE.Clock();
+
+    // Add a position reset in case the planet is not visible
+    this.planet.position.set(0, 0, 0);
+    this.planet.scale.set(2, 2, 2); // Make planet larger
   }
 
   createPlanet() {

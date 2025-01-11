@@ -6,6 +6,10 @@ export class SunManager {
     this.sun = this.createSun();
     this.scene.add(this.sun);
     this.setupSunLight();
+    
+    // Move sun further away and make it larger
+    this.sun.position.set(200, 80, -400);
+    this.sun.scale.set(2, 2, 2);
   }
 
   createSun() {

@@ -22,6 +22,12 @@ class App {
       this.moonManager = new MoonManager(this.sceneManager.scene);
       this.planetManager = new PlanetManager(this.sceneManager.scene, this.moonManager);
       this.bindEvents();
+
+      // Force an immediate render to check if planet is visible
+      this.sceneManager.render();
+      
+      // Make canvas visible immediately for debugging
+      this.sceneManager.show();
     } catch (error) {
       console.error('Error initializing app:', error);
       document.getElementById('webglError').style.display = 'block';
@@ -47,7 +53,6 @@ class App {
 
   startExperience() {
     this.audioManager.loadAndPlayAudio();
-    this.sceneManager.show();
     document.getElementById('startButton').style.display = 'none';
   }
 
