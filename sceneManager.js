@@ -5,6 +5,8 @@ export class SceneManager {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
+    this.containerElement = document.createElement('div');
+    this.containerElement.className = 'canvas-container';
     
     this.setup();
     this.setupLighting();
@@ -12,8 +14,8 @@ export class SceneManager {
 
   setup() {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(this.renderer.domElement);
-    this.renderer.domElement.style.display = 'none';
+    this.containerElement.appendChild(this.renderer.domElement);
+    document.body.appendChild(this.containerElement);
     this.camera.position.z = 5;
     
     // Add some fog to create depth
@@ -40,7 +42,7 @@ export class SceneManager {
   }
 
   show() {
-    this.renderer.domElement.style.display = 'block';
+    this.containerElement.classList.add('visible');
   }
 
   render() {
