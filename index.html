@@ -1,0 +1,89 @@
+<html><head><base href="." target="_blank">
+  <meta charset="UTF-8">
+  <title>3D Audio Experience</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #000000;
+    }
+
+    #startButton {
+      padding: 20px 40px;
+      font-size: 24px;
+      background: linear-gradient(45deg, #ff3366, #ff6b6b);
+      border: none;
+      color: white;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      font-family: Arial, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    #startButton:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(255, 51, 102, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <button id="startButton">Start Experience</button>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js';
+
+    // Set up scene
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+    renderer.domElement.style.display = 'none'; // Hide canvas initially
+
+    camera.position.z = 5;
+
+    // Audio setup
+    const listener = new THREE.AudioListener();
+    camera.add(listener);
+    const sound = new THREE.Audio(listener);
+    const audioLoader = new THREE.AudioLoader();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      renderer.setSize(width, height);
+    });
+
+    // Start button functionality
+    document.getElementById('startButton').addEventListener('click', function() {
+      // Load and play audio
+      audioLoader.load('/lostbanger.wav', function(buffer) {
+        sound.setBuffer(buffer);
+        sound.setLoop(true);
+        sound.play();
+      });
+
+      // Show the 3D scene
+      renderer.domElement.style.display = 'block';
+      
+      // Hide the start button
+      this.style.display = 'none';
+    });
+  </script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body></html>
