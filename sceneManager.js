@@ -4,7 +4,12 @@ export class SceneManager {
   constructor() {
     this.scene = new THREE.Scene();
     // Increase far plane dramatically to prevent culling at large distances
-    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000000);
+    this.camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      1,
+      10000000000 // Increased far plane dramatically
+    );
     
     try {
       this.renderer = new THREE.WebGLRenderer({ 
@@ -23,7 +28,7 @@ export class SceneManager {
     
     // Adjust zoom limits for realistic solar system scale
     this.minDistance = 15;  
-    this.maxDistance = 500000; // Increased max zoom distance
+    this.maxDistance = 5000000; // Increased max zoom distance
     this.zoomSpeed = 1.2; // Increased for better control at large distances
     this.currentDistance = 100;
     this.targetDistance = 100;

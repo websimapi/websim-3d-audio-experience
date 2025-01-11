@@ -4,17 +4,15 @@ export class SunManager {
   constructor(scene) {
     this.scene = scene;
     this.sun = this.createSun();
-    this.sun.frustumCulled = false; // Prevent sun culling
     this.scene.add(this.sun);
     this.setupSunLight();
   }
 
   createSun() {
     // Sun's actual radius is about 696,340 km
-    // Using scale factor while maintaining relative proportions
-    const geometry = new THREE.SphereGeometry(5000, 128, 128);
+    const sunRadius = 696340 * 0.1; // Scale factor to match Earth scale
+    const geometry = new THREE.SphereGeometry(sunRadius, 128, 128);
     
-    // Enhanced sun shader
     const material = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
@@ -24,9 +22,12 @@ export class SunManager {
       vertexShader: `
         varying vec3 vNormal;
         varying vec2 vUv;
+        varying vec3 vWorldPosition;
         void main() {
           vNormal = normalize(normalMatrix * normal);
           vUv = uv;
+          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+          vWorldPosition = worldPosition.xyz;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
@@ -36,43 +37,29 @@ export class SunManager {
         uniform vec3 surfaceColor;
         varying vec3 vNormal;
         varying vec2 vUv;
-
-        float hash(vec2 p) {
-          return fract(sin(dot(p, vec2(123.45, 67.89))) * 12345.67);
-        }
+        varying vec3 vWorldPosition;
 
         float noise(vec2 p) {
-          vec2 i = floor(p);
-          vec2 f = fract(p);
-          f = f * f * (3.0 - 2.0 * f);
-          
-          float a = hash(i);
-          float b = hash(i + vec2(1.0, 0.0));
-          float c = hash(i + vec2(0.0, 1.0));
-          float d = hash(i + vec2(1.0, 1.0));
-          
-          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+          return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
         }
 
         void main() {
-          // Multiple layers of noise for solar surface detail
-          float n = 0.0;
-          n += noise((vUv + time * 0.05) * 10.0) * 0.5;
-          n += noise((vUv - time * 0.1) * 20.0) * 0.25;
-          n += noise((vUv + time * 0.15) * 40.0) * 0.125;
+          float plasma = 0.0;
+          for(float i = 1.0; i < 6.0; i++) {
+            vec2 coord = vUv * (10.0 * i);
+            coord += vec2(time * (0.1 * i), time * (0.2 * i));
+            plasma += noise(coord) * (1.0 / i);
+          }
           
-          // Solar flare effect
-          float flare = pow(noise((vUv + time * 0.2) * 5.0), 3.0) * 2.0;
+          vec3 color = mix(surfaceColor, sunColor, plasma);
           
-          // Combine base colors with noise
-          vec3 color = mix(surfaceColor, sunColor, n);
+          // Add bright spots
+          float spots = pow(noise(vUv * 20.0 + time), 3.0) * 2.0;
+          color += sunColor * spots;
           
-          // Add bright spots and flares
-          color += sunColor * flare;
-          
-          // Add limb darkening effect
+          // Add limb darkening
           float limb = pow(max(0.0, dot(vNormal, vec3(0.0, 0.0, 1.0))), 0.5);
-          color *= mix(0.7, 1.0, limb);
+          color = mix(color * 0.8, color, limb);
           
           gl_FragColor = vec4(color, 1.0);
         }
@@ -83,30 +70,33 @@ export class SunManager {
     });
 
     const sun = new THREE.Mesh(geometry, material);
-    
-    // Enhanced glow effect
-    const glowGeometry = new THREE.SphereGeometry(5010, 128, 128);
+    sun.frustumCulled = false;
+
+    // Position sun at realistic scaled distance from Earth
+    const astronomicalUnit = 149597870.7 * 0.1; // 1 AU in km, scaled
+    sun.position.set(astronomicalUnit, 0, -astronomicalUnit);
+
+    // Add glow effect
+    const glowGeometry = new THREE.SphereGeometry(sunRadius * 1.2, 128, 128);
     const glowMaterial = new THREE.ShaderMaterial({
       uniforms: {
-        viewVector: { value: new THREE.Vector3() },
-        time: { value: 0 }
+        time: { value: 0 },
+        color: { value: new THREE.Color(0xffdd44) }
       },
       vertexShader: `
-        uniform vec3 viewVector;
-        varying float intensity;
+        varying vec3 vNormal;
         void main() {
-          vec3 vNormal = normalize(normalMatrix * normal);
-          vec3 vNormalize = normalize(viewVector);
-          intensity = pow(1.0 - abs(dot(vNormal, vNormalize)), 2.0);
+          vNormal = normalize(normalMatrix * normal);
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: `
         uniform float time;
-        varying float intensity;
+        uniform vec3 color;
+        varying vec3 vNormal;
         void main() {
-          vec3 glow = vec3(1.0, 0.7, 0.3) * intensity;
-          gl_FragColor = vec4(glow, 1.0);
+          float intensity = pow(0.7 - dot(vNormal, vec3(0, 0, 1.0)), 2.0);
+          gl_FragColor = vec4(color, intensity);
         }
       `,
       side: THREE.BackSide,
@@ -115,34 +105,28 @@ export class SunManager {
       depthWrite: false
     });
 
-    const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
-    sun.add(glowMesh);
-
-    // Position sun at more realistic scaled distance
-    sun.position.set(149597870 * 0.1, 200, -149597870 * 0.1); // Roughly 149.6 million km (1 AU)
-    
-    // Ensure the sun and its components are never culled
-    sun.frustumCulled = false;
-    glowMesh.frustumCulled = false;
+    const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+    glow.frustumCulled = false;
+    sun.add(glow);
 
     return sun;
   }
 
   setupSunLight() {
-    // Main directional light for sun
-    const sunLight = new THREE.DirectionalLight(0xffffff, 3);
+    // Intense directional light from sun position
+    const sunLight = new THREE.DirectionalLight(0xffffff, 5);
     sunLight.position.copy(this.sun.position);
-    sunLight.castShadow = true;
+    sunLight.frustumCulled = false;
     
     // Improve shadow quality
+    sunLight.castShadow = true;
     sunLight.shadow.mapSize.width = 4096;
     sunLight.shadow.mapSize.height = 4096;
-    sunLight.shadow.camera.near = 0.5;
-    sunLight.shadow.camera.far = 5000;
+    sunLight.shadow.camera.near = 1;
+    sunLight.shadow.camera.far = 1000000;
     sunLight.shadow.bias = -0.0001;
     
-    // Increase shadow camera frustum
-    const d = 1000;
+    const d = 10000;
     sunLight.shadow.camera.left = -d;
     sunLight.shadow.camera.right = d;
     sunLight.shadow.camera.top = d;
@@ -150,20 +134,21 @@ export class SunManager {
     
     this.scene.add(sunLight);
 
-    // Add point light for volumetric lighting effects
-    const pointLight = new THREE.PointLight(0xffdd44, 5, 3000);
-    pointLight.position.copy(this.sun.position);
-    this.scene.add(pointLight);
-
-    // Add secondary fill light
-    const fillLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 1);
-    this.scene.add(fillLight);
+    // Add ambient light for general illumination
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+    this.scene.add(ambientLight);
   }
 
   animate(camera) {
-    const glowMesh = this.sun.children[0];
-    glowMesh.material.uniforms.viewVector.value = new THREE.Vector3().subVectors(camera.position, this.sun.position);
-    glowMesh.material.uniforms.time.value = performance.now() * 0.001;
-    this.sun.material.uniforms.time.value = performance.now() * 0.001;
+    if (this.sun) {
+      // Update sun shader time
+      this.sun.material.uniforms.time.value = performance.now() * 0.001;
+      
+      // Update glow effect
+      const glow = this.sun.children[0];
+      if (glow) {
+        glow.material.uniforms.time.value = performance.now() * 0.001;
+      }
+    }
   }
 }
