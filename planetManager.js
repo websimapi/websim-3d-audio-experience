@@ -5,229 +5,207 @@ export class PlanetManager {
     this.scene = scene;
     this.moonManager = moonManager;
     this.createPlanetLayers();
-    this.clock = new THREE.Clock();
   }
 
   createPlanetLayers() {
     // Earth's actual radius is 6,371 km
     // Using scale factor while maintaining relative proportions
-    const baseRadius = 300; // Increased for better visibility at scale
+    const baseRadius = 300; // For visibility at scale
 
-    // Update core sizes to match actual proportions
-    const innerCoreRadius = baseRadius * 0.192; // 1,220 km
-    const outerCoreRadius = baseRadius * 0.546; // 3,480 km
-    const mantleRadius = baseRadius * 0.995; // 6,340 km
-    const crustRadius = baseRadius; // 6,371 km
+    // Geographic data uniforms
+    const terrainUniforms = {
+      time: { value: 0 },
+      elevation: { value: 1.0 },
+      oceanLevel: { value: 0.65 }
+    };
 
-    // Inner Core 
-    const innerCore = new THREE.Mesh(
-      new THREE.SphereGeometry(innerCoreRadius, 64, 64),
-      new THREE.MeshStandardMaterial({
-        color: 0xff3300,
-        metalness: 0.8,
-        roughness: 0.3,
-        emissive: 0xff4400,
-        emissiveIntensity: 0.2
-      })
-    );
-
-    // Outer Core 
-    const outerCore = new THREE.Mesh(
-      new THREE.SphereGeometry(outerCoreRadius, 64, 64),
-      new THREE.MeshStandardMaterial({
-        color: 0xff6600,
-        metalness: 0.6,
-        roughness: 0.4,
-        transparent: true,
-        opacity: 0.9
-      })
-    );
-
-    // Mantle 
-    const mantle = new THREE.Mesh(
-      new THREE.SphereGeometry(mantleRadius, 64, 64),
-      new THREE.MeshStandardMaterial({
-        color: 0x8b4513,
-        metalness: 0.2,
-        roughness: 0.8,
-        transparent: true,
-        opacity: 0.9
-      })
-    );
-
-    // Crust 
-    const crust = new THREE.Mesh(
-      new THREE.SphereGeometry(crustRadius, 64, 64),
-      new THREE.MeshStandardMaterial({
-        color: 0x696969,
-        metalness: 0.1,
-        roughness: 0.9,
-        transparent: true,
-        opacity: 0.95
-      })
-    );
-
-    // Ocean layer - slightly larger than crust
-    const oceanGeometry = new THREE.SphereGeometry(baseRadius * 1.02, 256, 256);
-    const oceanMaterial = new THREE.ShaderMaterial({
-      uniforms: {
-        time: { value: 0 },
-        moonPosition: { value: new THREE.Vector3() },
-        sunPosition: { value: new THREE.Vector3(100, 40, -200) },
-        baseColor: { value: new THREE.Color(0x006994) },
-        highlightColor: { value: new THREE.Color(0x8acdff) },
-        deepColor: { value: new THREE.Color(0x001933) },
-        foamColor: { value: new THREE.Color(0xffffff) },
-        cameraPosition: { value: new THREE.Vector3() }
-      },
+    // Create detailed terrain material with heightmap
+    const terrainMaterial = new THREE.ShaderMaterial({
+      uniforms: terrainUniforms,
       vertexShader: `
         varying vec3 vNormal;
         varying vec2 vUv;
-        varying vec3 vPosition;
-        varying vec3 vWorldPosition;
+        varying float vElevation;
+        
+        float hash(vec2 p) {
+          return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+        }
+        
+        float noise(vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          
+          float a = hash(i);
+          float b = hash(i + vec2(1.0, 0.0));
+          float c = hash(i + vec2(0.0, 1.0));
+          float d = hash(i + vec2(1.0, 1.0));
+          
+          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+        }
+        
+        float fbm(vec2 p) {
+          float value = 0.0;
+          float amplitude = 0.5;
+          float frequency = 1.0;
+          for(int i = 0; i < 6; i++) {
+            value += amplitude * noise(p * frequency);
+            amplitude *= 0.5;
+            frequency *= 2.0;
+          }
+          return value;
+        }
         
         void main() {
           vNormal = normalize(normalMatrix * normal);
           vUv = uv;
-          vPosition = position;
-          vec4 worldPosition = modelMatrix * vec4(position, 1.0);
-          vWorldPosition = worldPosition.xyz;
+          
+          // Generate terrain displacement
+          float elevation = fbm(vUv * 10.0);
+          elevation = pow(elevation, 1.5); // Enhance peaks
+          vElevation = elevation;
+          
+          // Apply displacement along normal
+          vec3 newPosition = position + normal * elevation * 10.0;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vNormal;
+        varying vec2 vUv;
+        varying float vElevation;
+        uniform float oceanLevel;
+        
+        void main() {
+          // Base terrain colors
+          vec3 deepColor = vec3(0.4, 0.3, 0.2);
+          vec3 highColor = vec3(0.8, 0.7, 0.6);
+          vec3 snowColor = vec3(0.95, 0.95, 0.95);
+          
+          // Terrain coloring based on elevation
+          vec3 terrainColor = mix(deepColor, highColor, vElevation);
+          terrainColor = mix(terrainColor, snowColor, smoothstep(0.8, 0.9, vElevation));
+          
+          // Apply basic lighting
+          float light = max(0.0, dot(vNormal, normalize(vec3(1.0))));
+          terrainColor *= mix(0.5, 1.0, light);
+          
+          gl_FragColor = vec4(terrainColor, 1.0);
+        }
+      `,
+      wireframe: false
+    });
+
+    // Create the planet's crust with terrain
+    const terrainGeometry = new THREE.SphereGeometry(baseRadius, 256, 256);
+    const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
+
+    // Create realistic ocean material
+    const oceanMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        time: { value: 0 },
+        oceanColor: { value: new THREE.Color(0x006994) },
+        deepColor: { value: new THREE.Color(0x001933) },
+        foamColor: { value: new THREE.Color(0xffffff) }
+      },
+      vertexShader: `
+        varying vec3 vNormal;
+        varying vec2 vUv;
+        varying float vDepth;
+        
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          vUv = uv;
+          vec4 worldPos = modelMatrix * vec4(position, 1.0);
+          vDepth = -worldPos.y;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: `
         uniform float time;
-        uniform vec3 moonPosition;
-        uniform vec3 sunPosition;
-        uniform vec3 baseColor;
-        uniform vec3 highlightColor;
+        uniform vec3 oceanColor;
         uniform vec3 deepColor;
         uniform vec3 foamColor;
-        uniform vec3 cameraPosition;
         
         varying vec3 vNormal;
         varying vec2 vUv;
-        varying vec3 vPosition;
-        varying vec3 vWorldPosition;
+        varying float vDepth;
         
-        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-        vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
-        vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
-
-        float snoise(vec2 v) {
-          const vec4 C = vec4(0.211324865405187, 0.366025403784439,
-                           -0.577350269189626, 0.024390243902439);
-          vec2 i = floor(v + dot(v, C.yy));
-          vec2 x0 = v - i + dot(i, C.xx);
-          vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
-          vec4 x12 = x0.xyxy + C.xxzz;
-          x12.xy -= i1;
-          i = mod289(i);
-          vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
-          vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
-          m = m*m;
-          m = m*m;
-          vec3 x = 2.0 * fract(p * C.www) - 1.0;
-          vec3 h = abs(x) - 0.5;
-          vec3 ox = floor(x + 0.5);
-          vec3 a0 = x - ox;
-          m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
-          vec3 g;
-          g.x = a0.x * x0.x + h.x * x0.y;
-          g.yz = a0.yz * x12.xz + h.yz * x12.yw;
-          return 130.0 * dot(m, g);
+        float noise(vec2 p) {
+          return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
         }
-
-        float getWaves(vec2 uv) {
-          float waves = 0.0;
-          waves += snoise(uv * 2.0 + time * 0.5) * 0.5;
-          waves += snoise(uv * 4.0 + time * 0.8) * 0.25;
-          waves += snoise(uv * 8.0 + time * 1.2) * 0.125;
-          return waves;
-        }
-
+        
         void main() {
-          vec3 viewDir = normalize(cameraPosition - vWorldPosition);
-          float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 3.0);
+          // Ocean waves
+          float waves = 0.0;
+          vec2 uv = vUv * 20.0 + time * 0.1;
           
-          vec2 uv = vUv * 20.0;
-          float waves = getWaves(uv);
+          for(float i = 1.0; i < 5.0; i++) {
+            waves += noise(uv * i) / i;
+          }
           
-          // Tidal effect from moon
-          float moonDist = length(moonPosition - vWorldPosition);
-          float tidalEffect = 1.0 / (moonDist * moonDist * 0.0001);
-          waves *= (1.0 + tidalEffect * 0.2);
+          // Mix deep and surface colors based on depth and waves
+          vec3 color = mix(deepColor, oceanColor, waves);
           
-          // Depth color
-          vec3 waterColor = mix(deepColor, baseColor, waves * 0.5 + 0.5);
+          // Add foam at wave peaks
+          color = mix(color, foamColor, smoothstep(0.8, 1.0, waves) * 0.2);
           
-          // Lighting and reflections
-          vec3 sunDir = normalize(sunPosition - vWorldPosition);
-          float sunReflection = pow(max(0.0, dot(reflect(-sunDir, vNormal), viewDir)), 32.0);
+          // Basic fresnel effect
+          float fresnel = pow(1.0 - max(0.0, dot(vNormal, vec3(0.0, 0.0, 1.0))), 3.0);
+          color = mix(color, vec3(1.0), fresnel * 0.3);
           
-          // Final color composition
-          vec3 finalColor = waterColor;
-          finalColor += highlightColor * fresnel * 0.5;
-          finalColor += vec3(1.0, 0.95, 0.8) * sunReflection;
-          finalColor += foamColor * smoothstep(0.7, 1.0, waves) * 0.2;
-          
-          gl_FragColor = vec4(finalColor, 0.85);
+          gl_FragColor = vec4(color, 0.8);
         }
       `,
-      transparent: true,
-      side: THREE.FrontSide
+      transparent: true
     });
 
+    // Create ocean mesh slightly larger than terrain
+    const oceanGeometry = new THREE.SphereGeometry(baseRadius * 1.01, 256, 256);
     const ocean = new THREE.Mesh(oceanGeometry, oceanMaterial);
 
-    // Set up shadows for all meshes
-    const meshes = [innerCore, outerCore, mantle, crust];
-    meshes.forEach(mesh => {
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-    });
-
-    // Create planet container and add all layers
-    this.planet = new THREE.Group();
-    this.planet.add(innerCore);
-    this.planet.add(outerCore);
-    this.planet.add(mantle);
-    this.planet.add(crust);
-    this.planet.add(ocean);
-
-    // Add atmosphere with adjusted size
-    const atmosphereGeometry = new THREE.SphereGeometry(baseRadius * 1.05, 128, 128);
+    // Create atmosphere
     const atmosphereMaterial = new THREE.ShaderMaterial({
-      transparent: true,
-      side: THREE.BackSide,
+      uniforms: {
+        time: { value: 0 },
+        sunPosition: { value: new THREE.Vector3(1, 0, 0) }
+      },
       vertexShader: `
         varying vec3 vNormal;
         varying vec3 vPosition;
+        
         void main() {
           vNormal = normalize(normalMatrix * normal);
-          vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
+          vPosition = position;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
       fragmentShader: `
+        uniform vec3 sunPosition;
         varying vec3 vNormal;
         varying vec3 vPosition;
+        
         void main() {
-          float intensity = pow(0.7 - dot(normalize(vPosition), vNormal), 2.0);
-          vec3 atmosphereColor = vec3(0.3, 0.6, 1.0);
-          gl_FragColor = vec4(atmosphereColor, intensity * 0.3);
+          float atmosphere = pow(1.0 - abs(dot(vNormal, normalize(vPosition))), 4.0);
+          vec3 atmosphereColor = mix(vec3(0.1, 0.3, 0.6), vec3(0.4, 0.6, 0.8), atmosphere);
+          gl_FragColor = vec4(atmosphereColor, atmosphere * 0.5);
         }
-      `
+      `,
+      transparent: true,
+      side: THREE.BackSide,
+      blending: THREE.AdditiveBlending
     });
 
+    const atmosphereGeometry = new THREE.SphereGeometry(baseRadius * 1.1, 128, 128);
     const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+
+    // Create planet container and add all components
+    this.planet = new THREE.Group();
+    this.planet.add(terrain);
+    this.planet.add(ocean);
     this.planet.add(atmosphere);
 
-    // Set initial rotation and position
-    this.planet.rotation.x = 0.2;
-    this.planet.rotation.y = Math.PI;
-
-    // Ensure no culling for the planet group
+    // Ensure no culling
     this.planet.frustumCulled = false;
     this.planet.children.forEach(child => {
       child.frustumCulled = false;
@@ -237,9 +215,21 @@ export class PlanetManager {
   }
 
   animate() {
+    const time = performance.now() * 0.001;
+    
+    // Update all shader materials
+    this.planet.children.forEach(child => {
+      if (child.material && child.material.uniforms) {
+        if (child.material.uniforms.time) {
+          child.material.uniforms.time.value = time;
+        }
+        if (child.material.uniforms.moonPosition) {
+          child.material.uniforms.moonPosition.value.copy(this.moonManager.getPosition());
+        }
+      }
+    });
+    
+    // Rotate planet
     this.planet.rotation.y += 0.001;
-    const oceanMaterial = this.planet.children[4].material; // Ocean is the 5th child
-    oceanMaterial.uniforms.time.value = this.clock.getElapsedTime();
-    oceanMaterial.uniforms.moonPosition.value.copy(this.moonManager.getPosition());
   }
 }
