@@ -14,19 +14,22 @@ export class PlanetManager {
     const oceanMaterial = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
-        baseColor: { value: new THREE.Color(0x2233ff) },
-        highlightColor: { value: new THREE.Color(0x4477ff) },
-        deepColor: { value: new THREE.Color(0x001133) }
+        baseColor: { value: new THREE.Color(0x006994) },  
+        highlightColor: { value: new THREE.Color(0x8acdff) },  
+        deepColor: { value: new THREE.Color(0x001933) },  
+        foamColor: { value: new THREE.Color(0xffffff) }  
       },
       vertexShader: `
         varying vec3 vNormal;
         varying vec2 vUv;
         varying vec3 vPosition;
+        varying vec3 vWorldPosition;
         
         void main() {
           vNormal = normalize(normalMatrix * normal);
           vUv = uv;
           vPosition = position;
+          vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }
       `,
@@ -35,66 +38,84 @@ export class PlanetManager {
         uniform vec3 baseColor;
         uniform vec3 highlightColor;
         uniform vec3 deepColor;
+        uniform vec3 foamColor;
         
         varying vec3 vNormal;
         varying vec2 vUv;
         varying vec3 vPosition;
+        varying vec3 vWorldPosition;
         
-        float noise(vec2 p) {
-          return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453123);
-        }
-        
-        // Simplex 2D noise
-        vec3 permute(vec3 x) { 
-          return mod(((x*34.0)+1.0)*x, 289.0); 
-        }
+        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
 
         float snoise(vec2 v) {
           const vec4 C = vec4(0.211324865405187, 0.366025403784439,
                    -0.577350269189626, 0.024390243902439);
-          vec2 i  = floor(v + dot(v, C.yy) );
+          vec2 i  = floor(v + dot(v, C.yy));
           vec2 x0 = v -   i + dot(i, C.xx);
-          vec2 i1;
-          i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+          vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
           vec4 x12 = x0.xyxy + C.xxzz;
           x12.xy -= i1;
-          i = mod(i, 289.0);
-          vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
-            + i.x + vec3(0.0, i1.x, 1.0 ));
-          vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy),
-            dot(x12.zw,x12.zw)), 0.0);
-          m = m*m ;
-          m = m*m ;
+          i = mod289(i);
+          vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+          vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+          m = m*m;
+          m = m*m;
           vec3 x = 2.0 * fract(p * C.www) - 1.0;
           vec3 h = abs(x) - 0.5;
           vec3 ox = floor(x + 0.5);
           vec3 a0 = x - ox;
-          m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+          m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
           vec3 g;
-          g.x  = a0.x  * x0.x  + h.x  * x0.y;
+          g.x = a0.x * x0.x + h.x * x0.y;
           g.yz = a0.yz * x12.xz + h.yz * x12.yw;
           return 130.0 * dot(m, g);
         }
+
+        float oceanNoise(vec2 uv) {
+          float scale1 = 8.0;
+          float scale2 = 16.0;
+          float scale3 = 32.0;
+          float scale4 = 64.0;
+          
+          float wave1 = snoise(uv * scale1 + time * vec2(0.1, 0.2));
+          float wave2 = snoise(uv * scale2 + time * vec2(-0.1, 0.15) + wave1);
+          float wave3 = snoise(uv * scale3 + time * vec2(0.15, -0.1) + wave2);
+          float wave4 = snoise(uv * scale4 + time * vec2(-0.15, -0.15) + wave3);
+          
+          return wave1 * 0.5 + wave2 * 0.25 + wave3 * 0.125 + wave4 * 0.0625;
+        }
         
         void main() {
-          // Create dynamic wave pattern
-          float waves = snoise(vUv * 10.0 + time * 0.2) * 0.5 +
-                       snoise(vUv * 20.0 - time * 0.1) * 0.25 +
-                       snoise(vUv * 40.0 + time * 0.05) * 0.125;
+          vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
           
-          // Fresnel effect
-          vec3 viewDirection = normalize(cameraPosition - vPosition);
-          float fresnel = pow(1.0 - max(dot(viewDirection, vNormal), 0.0), 3.0);
+          float waves = oceanNoise(vUv);
           
-          // Combine colors based on waves and fresnel
-          vec3 color = mix(deepColor, baseColor, waves * 0.5 + 0.5);
-          color = mix(color, highlightColor, fresnel * 0.7);
+          float fresnel = pow(1.0 - max(dot(viewDirection, vNormal), 0.0), 4.0);
           
-          // Add specular highlights
-          float specular = pow(max(dot(normalize(vec3(1.0)), reflect(-viewDirection, vNormal)), 0.0), 32.0);
-          color += highlightColor * specular * 0.5;
+          vec2 waveOffset = vec2(
+            oceanNoise(vUv + vec2(0.01, 0.0)) - oceanNoise(vUv - vec2(0.01, 0.0)),
+            oceanNoise(vUv + vec2(0.0, 0.01)) - oceanNoise(vUv - vec2(0.0, 0.01))
+          );
           
-          gl_FragColor = vec4(color, 1.0);
+          vec3 adjustedNormal = normalize(vNormal + vec3(waveOffset.x, 0.0, waveOffset.y) * 0.5);
+          
+          vec3 lightDir = normalize(vec3(1.0, 0.5, -1.0));
+          vec3 halfDir = normalize(lightDir + viewDirection);
+          float specular = pow(max(dot(adjustedNormal, halfDir), 0.0), 64.0);
+          
+          float foamEdge = smoothstep(0.4, 0.5, waves);
+          float foamTip = smoothstep(0.7, 0.8, waves);
+          
+          vec3 waterColor = mix(deepColor, baseColor, waves * 0.5 + 0.5);
+          waterColor = mix(waterColor, highlightColor, fresnel * 0.8);
+          waterColor += highlightColor * specular * 0.6;
+          
+          waterColor = mix(waterColor, foamColor, foamEdge * 0.3);
+          waterColor = mix(waterColor, foamColor, foamTip * 0.2);
+          
+          gl_FragColor = vec4(waterColor, 1.0);
         }
       `,
       side: THREE.FrontSide
@@ -140,6 +161,6 @@ export class PlanetManager {
   animate() {
     this.planet.rotation.y += 0.001;
     const oceanMaterial = this.planet.material;
-    oceanMaterial.uniforms.time.value = this.clock.getElapsedTime();
+    oceanMaterial.uniforms.time.value = this.clock.getElapsedTime() * 0.5; 
   }
 }
