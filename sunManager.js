@@ -7,9 +7,6 @@ export class SunManager {
     this.scene.add(this.sun);
     this.setupSunLight();
     
-    // Position sun at a more realistic scaled distance (roughly 150 million km scale factor)
-    this.sun.position.set(1500, 200, -2000);
-
     // Ensure the sun is always rendered by setting renderOrder
     this.sun.renderOrder = 1000;
     this.sun.children[0].renderOrder = 999; // For the glow effect
@@ -17,8 +14,8 @@ export class SunManager {
 
   createSun() {
     // Sun's radius is about 696,340 km, Earth's is 6,371 km
-    // Using scale factor to keep it visually interesting while maintaining relative size
-    const geometry = new THREE.SphereGeometry(180, 64, 64); 
+    // Using scale factor to maintain relative proportions while keeping visualizable distances
+    const geometry = new THREE.SphereGeometry(500, 128, 128); // Increased resolution and size
     const material = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
@@ -41,32 +38,55 @@ export class SunManager {
         varying vec3 vNormal;
         varying vec2 vUv;
 
-        // Improved noise function for sun surface
+        float hash(vec2 p) {
+          return fract(sin(dot(p, vec2(123.45, 67.89))) * 12345.67);
+        }
+
         float noise(vec2 p) {
-          return sin(p.x * 10.0 + time) * cos(p.y * 10.0 + time) * 0.5 + 0.5;
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          f = f * f * (3.0 - 2.0 * f);
+          
+          float a = hash(i);
+          float b = hash(i + vec2(1.0, 0.0));
+          float c = hash(i + vec2(0.0, 1.0));
+          float d = hash(i + vec2(1.0, 1.0));
+          
+          return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
         }
 
         void main() {
-          float n = noise(vUv + time * 0.1);
-          n += noise((vUv + vec2(0.4)) * 2.0 + time * 0.15) * 0.5;
-          n += noise((vUv + vec2(0.8)) * 4.0 + time * 0.2) * 0.25;
-
+          // Multiple layers of noise for solar surface detail
+          float n = 0.0;
+          n += noise((vUv + time * 0.05) * 10.0) * 0.5;
+          n += noise((vUv - time * 0.1) * 20.0) * 0.25;
+          n += noise((vUv + time * 0.15) * 40.0) * 0.125;
+          
+          // Solar flare effect
+          float flare = pow(noise((vUv + time * 0.2) * 5.0), 3.0) * 2.0;
+          
+          // Combine base colors with noise
           vec3 color = mix(surfaceColor, sunColor, n);
           
-          // Add emissive glow
-          color += sunColor * 0.5;
+          // Add bright spots and flares
+          color += sunColor * flare;
+          
+          // Add limb darkening effect
+          float limb = pow(max(0.0, dot(vNormal, vec3(0.0, 0.0, 1.0))), 0.5);
+          color *= mix(0.7, 1.0, limb);
           
           gl_FragColor = vec4(color, 1.0);
         }
       `,
       transparent: false,
-      depthWrite: true
+      depthWrite: true,
+      depthTest: true
     });
 
     const sun = new THREE.Mesh(geometry, material);
     
     // Enhanced glow effect
-    const glowGeometry = new THREE.SphereGeometry(185, 64, 64);
+    const glowGeometry = new THREE.SphereGeometry(510, 128, 128);
     const glowMaterial = new THREE.ShaderMaterial({
       uniforms: {
         viewVector: { value: new THREE.Vector3() },
@@ -86,7 +106,7 @@ export class SunManager {
         uniform float time;
         varying float intensity;
         void main() {
-          vec3 glow = vec3(1.0, 0.8, 0.3) * intensity;
+          vec3 glow = vec3(1.0, 0.7, 0.3) * intensity;
           gl_FragColor = vec4(glow, 1.0);
         }
       `,
@@ -98,6 +118,13 @@ export class SunManager {
 
     const glowMesh = new THREE.Mesh(glowGeometry, glowMaterial);
     sun.add(glowMesh);
+
+    // Position sun at a more realistic scaled distance
+    sun.position.set(15000, 200, -20000);
+    
+    // Ensure the sun is always visible
+    sun.frustumCulled = false;
+    glowMesh.frustumCulled = false;
 
     return sun;
   }

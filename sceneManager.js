@@ -20,9 +20,9 @@ export class SceneManager {
     this.containerElement.className = 'canvas-container';
     
     // Camera control variables
-    this.minDistance = 30;  
-    this.maxDistance = 300;
-    this.zoomSpeed = 1.0;
+    this.minDistance = 15;  
+    this.maxDistance = 30000;
+    this.zoomSpeed = 0.8;
     this.currentDistance = 100;
     this.targetDistance = 100;
     this.lastTouchDistance = 0;
