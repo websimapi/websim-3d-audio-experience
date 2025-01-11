@@ -3,15 +3,13 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.m
 export class SunManager {
   constructor(scene) {
     this.scene = scene;
-    // Sun radius = 696,340 km, using scale factor of 1unit = 100km
-    this.sunRadius = 6963.4;
     this.sun = this.createSun();
     this.scene.add(this.sun);
     this.setupSunLight();
   }
 
   createSun() {
-    const geometry = new THREE.SphereGeometry(this.sunRadius, 128, 128);
+    const geometry = new THREE.SphereGeometry(40, 64, 64);
     const material = new THREE.MeshStandardMaterial({
       emissive: 0xffdd44,
       emissiveIntensity: 1,
@@ -20,10 +18,9 @@ export class SunManager {
     });
 
     const sun = new THREE.Mesh(geometry, material);
-    // Position sun about 150 million km away (1 AU)
-    sun.position.set(15000, 4000, -20000);
+    sun.position.set(100, 40, -200);
     
-    const glowGeometry = new THREE.SphereGeometry(this.sunRadius * 1.02, 128, 128);
+    const glowGeometry = new THREE.SphereGeometry(41, 64, 64);
     const glowMaterial = new THREE.ShaderMaterial({
       uniforms: {
         viewVector: { value: new THREE.Vector3() }
@@ -57,16 +54,16 @@ export class SunManager {
   }
 
   setupSunLight() {
-    const sunLight = new THREE.DirectionalLight(0xffffff, 3.5);
+    const sunLight = new THREE.DirectionalLight(0xffffff, 3);
     sunLight.position.copy(this.sun.position);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.width = 4096;
     sunLight.shadow.mapSize.height = 4096;
     sunLight.shadow.camera.near = 0.5;
-    sunLight.shadow.camera.far = 50000;
+    sunLight.shadow.camera.far = 1000;
     sunLight.shadow.bias = -0.0001;
     
-    const d = 1000;
+    const d = 400;
     sunLight.shadow.camera.left = -d;
     sunLight.shadow.camera.right = d;
     sunLight.shadow.camera.top = d;
@@ -74,7 +71,7 @@ export class SunManager {
     
     this.scene.add(sunLight);
 
-    const pointLight = new THREE.PointLight(0xffdd44, 5, 50000);
+    const pointLight = new THREE.PointLight(0xffdd44, 4, 600);
     pointLight.position.copy(this.sun.position);
     this.scene.add(pointLight);
   }

@@ -3,13 +3,15 @@ import { SceneManager } from './sceneManager.js';
 import { AudioManager } from './audioManager.js';
 import { PlanetManager } from './planetManager.js';
 import { SunManager } from './sunManager.js';
+import { MoonManager } from './moonManager.js';
 
 class App {
   constructor() {
     this.sceneManager = new SceneManager();
     this.audioManager = new AudioManager(this.sceneManager.camera);
     this.sunManager = new SunManager(this.sceneManager.scene);
-    this.planetManager = new PlanetManager(this.sceneManager.scene);
+    this.moonManager = new MoonManager(this.sceneManager.scene);
+    this.planetManager = new PlanetManager(this.sceneManager.scene, this.moonManager);
     this.bindEvents();
   }
 
@@ -27,6 +29,7 @@ class App {
   animate() {
     requestAnimationFrame(() => this.animate());
     this.planetManager.animate();
+    this.moonManager.animate();
     this.sunManager.animate(this.sceneManager.camera);
     this.sceneManager.render();
   }

@@ -1,21 +1,22 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js';
 
 export class PlanetManager {
-  constructor(scene) {
+  constructor(scene, moonManager) {
     this.scene = scene;
-    // Earth radius = 6371 km, using scale factor of 1unit = 100km
-    this.planetRadius = 63.71;
+    this.moonManager = moonManager;
     this.planet = this.createPlanet();
     this.scene.add(this.planet);
     this.clock = new THREE.Clock();
   }
 
   createPlanet() {
-    const geometry = new THREE.SphereGeometry(this.planetRadius, 256, 256);
+    const geometry = new THREE.SphereGeometry(8, 256, 256);
     
     const oceanMaterial = new THREE.ShaderMaterial({
       uniforms: {
         time: { value: 0 },
+        moonPosition: { value: new THREE.Vector3() },
+        sunPosition: { value: new THREE.Vector3(100, 40, -200) },
         baseColor: { value: new THREE.Color(0x006994) },
         highlightColor: { value: new THREE.Color(0x8acdff) },
         deepColor: { value: new THREE.Color(0x001933) },
@@ -26,7 +27,6 @@ export class PlanetManager {
         varying vec2 vUv;
         varying vec3 vPosition;
         varying vec3 vWorldPosition;
-        varying float vElevation;
         
         void main() {
           vNormal = normalize(normalMatrix * normal);
@@ -38,6 +38,8 @@ export class PlanetManager {
       `,
       fragmentShader: `
         uniform float time;
+        uniform vec3 moonPosition;
+        uniform vec3 sunPosition;
         uniform vec3 baseColor;
         uniform vec3 highlightColor;
         uniform vec3 deepColor;
@@ -48,117 +50,91 @@ export class PlanetManager {
         varying vec3 vPosition;
         varying vec3 vWorldPosition;
         
-        // Improved noise functions for more realistic water
-        vec4 permute(vec4 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
-        vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
-        vec3 fade(vec3 t) { return t*t*t*(t*(t*6.0-15.0)+10.0); }
+        // Improved noise functions
+        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
 
-        float cnoise(vec3 P) {
-          vec3 Pi0 = floor(P);
-          vec3 Pi1 = Pi0 + vec3(1.0);
-          Pi0 = mod(Pi0, 289.0);
-          Pi1 = mod(Pi1, 289.0);
-          vec3 Pf0 = fract(P);
-          vec3 Pf1 = Pf0 - vec3(1.0);
-          vec4 ix = vec4(Pi0.x, Pi1.x, Pi0.x, Pi1.x);
-          vec4 iy = vec4(Pi0.yy, Pi1.yy);
-          vec4 iz0 = Pi0.zzzz;
-          vec4 iz1 = Pi1.zzzz;
-
-          vec4 ixy = permute(permute(ix) + iy);
-          vec4 ixy0 = permute(ixy + iz0);
-          vec4 ixy1 = permute(ixy + iz1);
-
-          vec4 gx0 = ixy0 / 7.0;
-          vec4 gy0 = fract(floor(gx0) / 7.0) - 0.5;
-          gx0 = fract(gx0);
-          vec4 gz0 = vec4(0.5) - abs(gx0) - abs(gy0);
-          vec4 sz0 = step(gz0, vec4(0.0));
-          gx0 -= sz0 * (step(0.0, gx0) - 0.5);
-          gy0 -= sz0 * (step(0.0, gy0) - 0.5);
-
-          vec4 gx1 = ixy1 / 7.0;
-          vec4 gy1 = fract(floor(gx1) / 7.0) - 0.5;
-          gx1 = fract(gx1);
-          vec4 gz1 = vec4(0.5) - abs(gx1) - abs(gy1);
-          vec4 sz1 = step(gz1, vec4(0.0));
-          gx1 -= sz1 * (step(0.0, gx1) - 0.5);
-          gy1 -= sz1 * (step(0.0, gy1) - 0.5);
-
-          vec3 g000 = vec3(gx0.x,gy0.x,gz0.x);
-          vec3 g100 = vec3(gx0.y,gy0.y,gz0.y);
-          vec3 g010 = vec3(gx0.z,gy0.z,gz0.z);
-          vec3 g110 = vec3(gx0.w,gy0.w,gz0.w);
-          vec3 g001 = vec3(gx1.x,gy1.x,gz1.x);
-          vec3 g101 = vec3(gx1.y,gy1.y,gz1.y);
-          vec3 g011 = vec3(gx1.z,gy1.z,gz1.z);
-          vec3 g111 = vec3(gx1.w,gy1.w,gz1.w);
-
-          vec4 norm0 = taylorInvSqrt(vec4(dot(g000, g000), dot(g010, g010), dot(g100, g100), dot(g110, g110)));
-          g000 *= norm0.x;
-          g010 *= norm0.y;
-          g100 *= norm0.z;
-          g110 *= norm0.w;
-          vec4 norm1 = taylorInvSqrt(vec4(dot(g001, g001), dot(g011, g011), dot(g101, g101), dot(g111, g111)));
-          g001 *= norm1.x;
-          g011 *= norm1.y;
-          g101 *= norm1.z;
-          g111 *= norm1.w;
-
-          float n000 = dot(g000, Pf0);
-          float n100 = dot(g100, vec3(Pf1.x, Pf0.yz));
-          float n010 = dot(g010, vec3(Pf0.x, Pf1.y, Pf0.z));
-          float n110 = dot(g110, vec3(Pf1.xy, Pf0.z));
-          float n001 = dot(g001, vec3(Pf0.xy, Pf1.z));
-          float n101 = dot(g101, vec3(Pf1.x, Pf0.y, Pf1.z));
-          float n011 = dot(g011, vec3(Pf0.x, Pf1.yz));
-          float n111 = dot(g111, Pf1);
-
-          vec3 fade_xyz = fade(Pf0);
-          vec4 n_z = mix(vec4(n000, n100, n010, n110), vec4(n001, n101, n011, n111), fade_xyz.z);
-          vec2 n_yz = mix(n_z.xy, n_z.zw, fade_xyz.y);
-          float n_xyz = mix(n_yz.x, n_yz.y, fade_xyz.x); 
-          return 2.2 * n_xyz;
+        float snoise(vec2 v) {
+          const vec4 C = vec4(0.211324865405187, 0.366025403784439,
+                   -0.577350269189626, 0.024390243902439);
+          vec2 i  = floor(v + dot(v, C.yy));
+          vec2 x0 = v -   i + dot(i, C.xx);
+          vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+          vec4 x12 = x0.xyxy + C.xxzz;
+          x12.xy -= i1;
+          i = mod289(i);
+          vec3 p = permute(permute(i.y + vec3(0.0, i1.y, 1.0)) + i.x + vec3(0.0, i1.x, 1.0));
+          vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+          m = m*m;
+          m = m*m;
+          vec3 x = 2.0 * fract(p * C.www) - 1.0;
+          vec3 h = abs(x) - 0.5;
+          vec3 ox = floor(x + 0.5);
+          vec3 a0 = x - ox;
+          m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
+          vec3 g;
+          g.x = a0.x * x0.x + h.x * x0.y;
+          g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+          return 130.0 * dot(m, g);
         }
 
-        float oceanNoise(vec3 position) {
-          float waves = 0.0;
-          float frequency = 1.0;
-          float amplitude = 1.0;
-          float persistence = 0.65;
+        float getGravitationalEffect(vec3 pos, vec3 celestialBody) {
+          float distance = length(celestialBody - pos);
+          return 1.0 / (distance * distance);
+        }
+
+        float oceanNoise(vec2 uv) {
+          float moonEffect = getGravitationalEffect(vWorldPosition, moonPosition) * 2.0;
+          float sunEffect = getGravitationalEffect(vWorldPosition, sunPosition) * 1.0;
           
-          for(int i = 0; i < 6; i++) {
-            float noiseValue = cnoise(position * frequency + time * vec3(0.5, 0.5, 0.2) * (0.1 + float(i) * 0.05));
-            waves += noiseValue * amplitude;
-            frequency *= 2.0;
-            amplitude *= persistence;
-          }
+          float scale1 = 8.0 + moonEffect * 4.0;
+          float scale2 = 16.0 + moonEffect * 8.0;
+          float scale3 = 32.0 + moonEffect * 16.0;
+          float scale4 = 64.0 + moonEffect * 32.0;
           
-          return waves;
+          vec2 timeOffset = vec2(time * 0.1);
+          timeOffset += vec2(moonEffect * 0.5, sunEffect * 0.3);
+          
+          float wave1 = snoise(uv * scale1 + timeOffset);
+          float wave2 = snoise(uv * scale2 - timeOffset * 1.4 + wave1);
+          float wave3 = snoise(uv * scale3 + timeOffset * 0.8 + wave2);
+          float wave4 = snoise(uv * scale4 - timeOffset * 1.2 + wave3);
+          
+          return wave1 * 0.5 + wave2 * 0.25 + wave3 * 0.125 + wave4 * 0.0625;
         }
         
         void main() {
           vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
           
-          vec3 pos = vPosition * 0.1;
-          float waves = oceanNoise(pos);
+          float waves = oceanNoise(vUv);
+          float moonEffect = getGravitationalEffect(vWorldPosition, moonPosition);
+          float sunEffect = getGravitationalEffect(vWorldPosition, sunPosition);
           
-          float fresnel = pow(1.0 - max(dot(viewDirection, vNormal), 0.0), 5.0);
+          float fresnel = pow(1.0 - max(dot(viewDirection, vNormal), 0.0), 4.0);
+          fresnel *= 1.0 + moonEffect * 2.0 + sunEffect;
           
-          vec3 sunDirection = normalize(vec3(1.0, 0.5, -1.0));
-          float sunDot = max(dot(vNormal, sunDirection), 0.0);
+          vec2 waveOffset = vec2(
+            oceanNoise(vUv + vec2(0.01, 0.0)) - oceanNoise(vUv - vec2(0.01, 0.0)),
+            oceanNoise(vUv + vec2(0.0, 0.01)) - oceanNoise(vUv - vec2(0.0, 0.01))
+          );
           
-          vec3 reflectionDirection = reflect(-sunDirection, vNormal);
-          float specular = pow(max(dot(viewDirection, reflectionDirection), 0.0), 128.0);
+          vec3 adjustedNormal = normalize(vNormal + vec3(waveOffset.x, 0.0, waveOffset.y) * (0.5 + moonEffect));
           
-          vec3 waterColor = mix(deepColor, baseColor, waves * 0.5 + 0.5);
-          waterColor = mix(waterColor, highlightColor, fresnel);
+          vec3 lightDir = normalize(sunPosition - vWorldPosition);
+          vec3 halfDir = normalize(lightDir + viewDirection);
+          float specular = pow(max(dot(adjustedNormal, halfDir), 0.0), 64.0);
           
-          float foamFactor = smoothstep(0.4, 0.8, waves);
-          waterColor = mix(waterColor, foamColor, foamFactor * 0.3);
+          float tidalHeight = (moonEffect + sunEffect) * 0.5;
+          float foamEdge = smoothstep(0.4 - tidalHeight, 0.5 + tidalHeight, waves);
+          float foamTip = smoothstep(0.7 - tidalHeight, 0.8 + tidalHeight, waves);
           
-          waterColor += vec3(1.0) * specular * 0.5;
-          waterColor *= 0.8 + 0.4 * sunDot;
+          vec3 waterColor = mix(deepColor, baseColor, waves * 0.5 + 0.5 + tidalHeight);
+          waterColor = mix(waterColor, highlightColor, fresnel * 0.8);
+          waterColor += highlightColor * specular * (0.6 + moonEffect + sunEffect);
+          
+          waterColor = mix(waterColor, foamColor, foamEdge * 0.3);
+          waterColor = mix(waterColor, foamColor, foamTip * 0.2);
           
           gl_FragColor = vec4(waterColor, 1.0);
         }
@@ -172,7 +148,8 @@ export class PlanetManager {
     planet.receiveShadow = true;
     planet.rotation.y = Math.PI;
     
-    const atmosphereGeometry = new THREE.SphereGeometry(this.planetRadius * 1.025, 256, 256);
+    // Add atmosphere
+    const atmosphereGeometry = new THREE.SphereGeometry(8.4, 128, 128);
     const atmosphereMaterial = new THREE.ShaderMaterial({
       transparent: true,
       side: THREE.BackSide,
@@ -189,10 +166,10 @@ export class PlanetManager {
         varying vec3 vNormal;
         varying vec3 vPosition;
         void main() {
-          float intensity = pow(0.75 - dot(normalize(vPosition), vNormal), 2.0);
+          float intensity = pow(0.7 - dot(normalize(vPosition), vNormal), 2.0);
           vec3 atmosphereColor = vec3(0.3, 0.6, 1.0);
           vec3 finalColor = atmosphereColor * intensity;
-          gl_FragColor = vec4(finalColor, intensity * 0.6);
+          gl_FragColor = vec4(finalColor, intensity * 0.5);
         }
       `,
     });
@@ -206,6 +183,7 @@ export class PlanetManager {
   animate() {
     this.planet.rotation.y += 0.001;
     const oceanMaterial = this.planet.material;
-    oceanMaterial.uniforms.time.value = this.clock.getElapsedTime() * 0.2;
+    oceanMaterial.uniforms.time.value = this.clock.getElapsedTime();
+    oceanMaterial.uniforms.moonPosition.value.copy(this.moonManager.getPosition());
   }
 }
