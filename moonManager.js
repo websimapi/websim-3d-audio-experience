@@ -30,5 +30,15 @@ export class MoonManager {
     return moon;
   }
 
-  // Rest of the methods remain unchanged
+  animate() {
+    // Update moon's orbital position
+    this.orbitAngle += this.orbitSpeed;
+    const x = Math.cos(this.orbitAngle) * this.orbitRadius;
+    const z = Math.sin(this.orbitAngle) * this.orbitRadius;
+    this.moon.position.set(x, 0, z);
+  }
+
+  getPosition() {
+    return this.moon.position;
+  }
 }
