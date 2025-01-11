@@ -1,17 +1,16 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.module.js';
 import { SceneManager } from './sceneManager.js';
 import { AudioManager } from './audioManager.js';
-import { SolarSystemManager } from './solarSystemManager.js';
-import { PhysicsManager } from './physicsManager.js';
+import { PlanetManager } from './planetManager.js';
+import { SunManager } from './sunManager.js';
 
 class App {
   constructor() {
     this.sceneManager = new SceneManager();
     this.audioManager = new AudioManager(this.sceneManager.camera);
-    this.physicsManager = new PhysicsManager();
-    this.solarSystemManager = new SolarSystemManager(this.sceneManager.scene, this.physicsManager);
+    this.sunManager = new SunManager(this.sceneManager.scene);
+    this.planetManager = new PlanetManager(this.sceneManager.scene);
     this.bindEvents();
-    this.lastTime = 0;
   }
 
   bindEvents() {
@@ -25,20 +24,15 @@ class App {
     document.getElementById('startButton').style.display = 'none';
   }
 
-  animate(currentTime) {
-    requestAnimationFrame((time) => this.animate(time));
-    
-    if (!this.lastTime) this.lastTime = currentTime;
-    const deltaTime = (currentTime - this.lastTime) / 1000;
-    this.lastTime = currentTime;
-
-    this.physicsManager.update(deltaTime);
-    this.solarSystemManager.animate(deltaTime);
+  animate() {
+    requestAnimationFrame(() => this.animate());
+    this.planetManager.animate();
+    this.sunManager.animate(this.sceneManager.camera);
     this.sceneManager.render();
   }
 
   init() {
-    this.animate(0);
+    this.animate();
   }
 }
 
