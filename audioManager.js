@@ -2,58 +2,58 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.m
 
 export class AudioManager {
   constructor(camera) {
+    // Initialize audio context
+    THREE.AudioContext.getContext().suspend();
+    
     this.listener = new THREE.AudioListener();
     camera.add(this.listener);
+    
+    // Create main sound
     this.sound = new THREE.Audio(this.listener);
+    
+    // Create gain node for smooth volume control
+    this.gainNode = THREE.AudioContext.getContext().createGain();
+    this.gainNode.gain.value = 0;
+    
     this.audioLoader = new THREE.AudioLoader();
-    this.volume = 0;
-    this.targetVolume = 1;
-    this.fadeSpeed = 0.005;
+    this.isLoaded = false;
+    this.targetVolume = 0.8; // Slightly lower max volume
+    this.fadeTime = 2.0; // Fade in over 2 seconds
   }
 
-  loadAndPlayAudio() {
-    this.audioLoader.load('/lostbanger.wav', (buffer) => {
-      // Create a new AudioBuffer with the trimmed data
-      const sampleRate = buffer.sampleRate;
-      const numberOfChannels = buffer.numberOfChannels;
-      const startOffset = sampleRate; // Start 1 second in
-      const newLength = buffer.length - startOffset;
+  async loadAndPlayAudio() {
+    if (this.isLoaded) return;
+    
+    try {
+      // Resume audio context on user interaction
+      await THREE.AudioContext.getContext().resume();
       
-      const trimmedBuffer = this.context.createBuffer(
-        numberOfChannels,
-        newLength,
-        sampleRate
-      );
-
-      // Copy the trimmed portion of the audio data
-      for (let channel = 0; channel < numberOfChannels; channel++) {
-        const oldData = buffer.getChannelData(channel);
-        const newData = trimmedBuffer.getChannelData(channel);
-        for (let i = 0; i < newLength; i++) {
-          newData[i] = oldData[i + startOffset];
-        }
-      }
-
-      this.sound.setBuffer(trimmedBuffer);
+      // Load the audio file
+      const buffer = await new Promise((resolve, reject) => {
+        this.audioLoader.load('/lostbanger.wav', resolve, undefined, reject);
+      });
+      
+      // Configure audio nodes
+      this.sound.setBuffer(buffer);
       this.sound.setLoop(true);
-      this.sound.setVolume(0); // Start with volume at 0
+      
+      // Connect through gain node
+      this.sound.connect(this.gainNode);
+      this.gainNode.connect(THREE.AudioContext.getContext().destination);
+      
+      // Start playback with volume at 0
+      this.gainNode.gain.setValueAtTime(0, THREE.AudioContext.getContext().currentTime);
       this.sound.play();
-      this.startFade();
-    });
-  }
-
-  startFade() {
-    const fadeInterval = setInterval(() => {
-      if (this.volume < this.targetVolume) {
-        this.volume += this.fadeSpeed;
-        this.sound.setVolume(this.volume);
-      } else {
-        clearInterval(fadeInterval);
-      }
-    }, 50);
-  }
-
-  get context() {
-    return this.listener.context;
+      
+      // Smooth fade in
+      this.gainNode.gain.linearRampToValueAtTime(
+        this.targetVolume,
+        THREE.AudioContext.getContext().currentTime + this.fadeTime
+      );
+      
+      this.isLoaded = true;
+    } catch (error) {
+      console.error('Error loading audio:', error);
+    }
   }
 }
